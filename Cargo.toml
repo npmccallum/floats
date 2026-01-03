@@ -1,0 +1,43 @@
+[package]
+name = "floats"
+version = "0.0.0"
+edition = "2021"
+authors = ["Nathaniel McCallum <nathaniel@mccallum.life>"]
+description = "f16 and f128 floating point types for compatibility with future Rust versions"
+license = "MIT"
+repository = "https://github.com/npmccallum/floats"
+homepage = "https://github.com/npmccallum/floats"
+documentation = "https://docs.rs/floats"
+readme = "README.md"
+keywords = ["float", "f16", "f128", "no_std"]
+categories = ["no-std", "rust-patterns", "mathematics"]
+rust-version = "1.60"
+
+[dependencies]
+casting = { version = "0.1.1", optional = true }
+
+[features]
+default = ["asm", "casting"]
+asm = []
+
+[dev-dependencies]
+casting = { version = "0.1.1", features = ["nightly"], optional = false }
+criterion = "0.8"
+rstest = "0.26"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "cast"
+harness = false
+
+# When optimization is disabled, f16 <=> u128/i128 conversions are broken.
+# See tests/platform.rs for a platform sanity check.
+
+[profile.test]
+opt-level = 1
+
+[profile.bench]
+opt-level = 1
