@@ -63,6 +63,10 @@ assert_eq!(back, std::f64::consts::PI);
 - `casting` (default): Enable the optional `casting` dependency for
   `CastFrom`/`CastInto` trait implementations between `f16`/`f128` and other
   numeric types.
+- `nightly`: Disable all crate code and simply re-export the nightly
+  `f16`/`f128` types. This makes it trivial to support either our custom types
+  or the nightly types without having to resort to complex dependency
+  management.
 
 ## Upgrade Path
 
@@ -72,4 +76,5 @@ and `CastInto` traits for conversions.
 
 ## License
 
-Licensed under the [MIT License](https://github.com/npmccallum/floats/blob/main/LICENSE).
+Licensed under the
+[MIT License](https://github.com/npmccallum/floats/blob/main/LICENSE).
