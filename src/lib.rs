@@ -2,6 +2,9 @@
 #![cfg_attr(feature = "nightly", feature(f16, f128))]
 #![no_std]
 
+#[cfg(feature = "casting")]
+pub use casting;
+
 #[cfg(not(feature = "nightly"))]
 mod half;
 
