@@ -3,6 +3,7 @@
 //! These tests verify that our f16/f128 CastFrom/CastInto implementations
 //! behave identically to the nightly standard library types.
 
+#![cfg(feature = "casting")]
 #![feature(f16, f128)]
 
 // Workaround for missing compiler-rt symbols on aarch64 macOS

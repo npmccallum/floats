@@ -33,21 +33,27 @@ casting = "0.1.1"
 ## Quick Start
 
 ```rust
+#![cfg_attr(feature = "nightly", feature(f16, f128))]
+
 use floats::{f16, f128};
-use casting::CastInto;
 
 // Create f16 from bits
 let half = f16::from_bits(0x3C00); // 1.0 in f16
 assert_eq!(half.to_bits(), 0x3C00);
 
-// Cast to f32 for arithmetic
-let float: f32 = half.cast_into();
-assert_eq!(float, 1.0f32);
+#[cfg(feature = "casting")]
+{
+  use casting::CastInto;
 
-// Create f128 from f64
-let quad: f128 = 3.141592653589793f64.cast_into();
-let back: f64 = quad.cast_into();
-assert_eq!(back, std::f64::consts::PI);
+  // Cast to f32 for arithmetic
+  let float: f32 = half.cast_into();
+  assert_eq!(float, 1.0f32);
+
+  // Create f128 from f64
+  let quad: f128 = 3.141592653589793f64.cast_into();
+  let back: f64 = quad.cast_into();
+  assert_eq!(back, std::f64::consts::PI);
+}
 ```
 
 ## Types

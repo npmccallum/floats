@@ -2,6 +2,7 @@
 //!
 //! Compares our custom CastFrom/CastInto implementations against nightly std library.
 
+#![cfg(feature = "casting")]
 #![feature(f16, f128)]
 #![allow(deprecated)]
 

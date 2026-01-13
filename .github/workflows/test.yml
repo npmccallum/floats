@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         rust: ["1.60", "stable", "nightly"]
-        features: ["", "asm", "casting", "asm,casting"]
+        features: ["", "asm", "casting", "nightly", "asm,casting", "asm,nightly", "casting,nightly", "asm,casting,nightly"]
         platform:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -39,8 +39,9 @@ jobs:
           targets: ${{ matrix.platform.target }}
 
       - name: Build
+        if: ${{ !contains(matrix.features, 'nightly') || matrix.rust == 'nightly' }}
         run: cargo build --no-default-features --features "${{ matrix.features }}" --verbose
 
       - name: Run tests
-        if: matrix.rust == 'nightly' && (matrix.features == 'asm,casting' || matrix.features == 'casting')
+        if: matrix.rust == 'nightly' && contains(matrix.features, 'casting')
         run: cargo test --no-default-features --features "${{ matrix.features }}" --verbose

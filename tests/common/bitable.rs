@@ -30,6 +30,7 @@ impl Bitable for f16 {
     }
 }
 
+#[cfg(not(feature = "nightly"))]
 impl Bitable for F16 {
     type Bits = u16;
 
@@ -63,6 +64,7 @@ impl Bitable for f128 {
     }
 }
 
+#[cfg(not(feature = "nightly"))]
 impl Bitable for F128 {
     type Bits = u128;
 

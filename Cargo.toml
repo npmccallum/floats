@@ -17,7 +17,7 @@ rust-version = "1.60"
 casting = { version = "0.1.1", optional = true }
 
 [features]
-default = ["asm", "casting"]
+default = ["asm"]
 nightly = ["casting?/nightly"]
 asm = []
 
@@ -33,6 +33,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [[bench]]
 name = "cast"
 harness = false
+required-features = ["casting"]
 
 # When optimization is disabled, f16 <=> u128/i128 conversions are broken.
 # See tests/platform.rs for a platform sanity check.
