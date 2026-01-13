@@ -1,6 +1,6 @@
 [package]
 name = "floats"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 authors = ["Nathaniel McCallum <nathaniel@mccallum.life>"]
 description = "f16 and f128 floating point types for compatibility with future Rust versions"
