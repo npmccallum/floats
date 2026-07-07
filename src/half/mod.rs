@@ -57,24 +57,34 @@ impl PartialEq for f16 {
 }
 
 impl f16 {
-    pub const NAN: Self = Self(u16::MAX);
-
-    pub const MIN: Self = Self(0xfbff);
-    pub const MAX: Self = Self(0x7bff);
-
-    pub const INFINITY: Self = Self(u16::MAX - 1);
-    pub const NEG_INFINITY: Self = Self(u16::MAX - 2);
+    pub const RADIX: u32 = 2;
 
     pub const MANTISSA_DIGITS: u32 = 11;
+    pub const DIGITS: u32 = 3;
+
+    pub const EPSILON: Self = Self(0x1400);
+
+    pub const MIN: Self = Self(0xfbff);
+    pub const MIN_POSITIVE: Self = Self(0x0400);
+    pub const MAX: Self = Self(0x7bff);
+
+    pub const MIN_EXP: i32 = -13;
+    pub const MAX_EXP: i32 = 16;
+    pub const MIN_10_EXP: i32 = -4;
+    pub const MAX_10_EXP: i32 = 4;
+
+    pub const NAN: Self = Self(0x7e00);
+    pub const INFINITY: Self = Self(0x7c00);
+    pub const NEG_INFINITY: Self = Self(0xfc00);
 
     #[inline]
     pub const fn is_nan(self) -> bool {
-        self.0 == Self::NAN.0
+        (self.0 & 0x7c00) == 0x7c00 && (self.0 & 0x03ff) != 0
     }
 
     #[inline]
     pub const fn is_infinite(self) -> bool {
-        self.0 == Self::INFINITY.0 || self.0 == Self::NEG_INFINITY.0
+        (self.0 & 0x7fff) == Self::INFINITY.0
     }
 
     #[inline]
