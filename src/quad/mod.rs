@@ -55,24 +55,35 @@ impl PartialEq for f128 {
 }
 
 impl f128 {
-    pub const NAN: Self = Self(u128::MAX);
-
-    pub const MIN: Self = Self(0xfffeffffffffffffffffffffffffffff);
-    pub const MAX: Self = Self(0x7ffeffffffffffffffffffffffffffff);
-
-    pub const INFINITY: Self = Self(u128::MAX - 1);
-    pub const NEG_INFINITY: Self = Self(u128::MAX - 2);
+    pub const RADIX: u32 = 2;
 
     pub const MANTISSA_DIGITS: u32 = 113;
+    pub const DIGITS: u32 = 33;
+
+    pub const EPSILON: Self = Self(0x3f8f0000000000000000000000000000);
+
+    pub const MIN: Self = Self(0xfffeffffffffffffffffffffffffffff);
+    pub const MIN_POSITIVE: Self = Self(0x00010000000000000000000000000000);
+    pub const MAX: Self = Self(0x7ffeffffffffffffffffffffffffffff);
+
+    pub const MIN_EXP: i32 = -16381;
+    pub const MAX_EXP: i32 = 16384;
+    pub const MIN_10_EXP: i32 = -4931;
+    pub const MAX_10_EXP: i32 = 4932;
+
+    pub const NAN: Self = Self(0x7fff8000000000000000000000000000);
+    pub const INFINITY: Self = Self(0x7fff0000000000000000000000000000);
+    pub const NEG_INFINITY: Self = Self(0xffff0000000000000000000000000000);
 
     #[inline]
     pub const fn is_nan(self) -> bool {
-        self.0 == Self::NAN.0
+        (self.0 & 0x7fff0000000000000000000000000000) == 0x7fff0000000000000000000000000000
+            && (self.0 & 0x0000ffffffffffffffffffffffffffff) != 0
     }
 
     #[inline]
     pub const fn is_infinite(self) -> bool {
-        self.0 == Self::INFINITY.0 || self.0 == Self::NEG_INFINITY.0
+        (self.0 & 0x7fffffffffffffffffffffffffffffff) == Self::INFINITY.0
     }
 
     #[inline]

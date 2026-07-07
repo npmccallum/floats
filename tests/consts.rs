@@ -1,7 +1,7 @@
-//! Compatibility tests for f16 constants/classification.
+//! Compatibility tests for f16 and f128 constants/classification.
 //!
-//! These tests verify that our f16 constants and classification methods behave
-//! identically to the nightly standard library type.
+//! These tests verify that our f16/f128 constants and classification methods
+//! behave identically to the nightly standard library types.
 
 #![feature(f16, f128)]
 
@@ -61,6 +61,70 @@ fn f16_bit_consts_match_primitive(
 #[case::zero(0.0f16)]
 fn f16_classification_matches_primitive(#[case] primitive: f16) {
     let custom = <<f16 as Customized>::Custom as Bitable>::from_bits(primitive.to_bits());
+
+    assert_eq!(custom.is_nan(), primitive.is_nan());
+    assert_eq!(custom.is_infinite(), primitive.is_infinite());
+    assert_eq!(custom.is_finite(), primitive.is_finite());
+}
+
+#[rstest::rstest]
+#[case::radix(<f128 as Customized>::Custom::RADIX as i64, f128::RADIX as i64)]
+#[case::mantissa_digits(
+    <f128 as Customized>::Custom::MANTISSA_DIGITS as i64,
+    f128::MANTISSA_DIGITS as i64
+)]
+#[case::digits(<f128 as Customized>::Custom::DIGITS as i64, f128::DIGITS as i64)]
+#[case::min_exp(
+    <f128 as Customized>::Custom::MIN_EXP as i64,
+    f128::MIN_EXP as i64
+)]
+#[case::max_exp(
+    <f128 as Customized>::Custom::MAX_EXP as i64,
+    f128::MAX_EXP as i64
+)]
+#[case::min_10_exp(
+    <f128 as Customized>::Custom::MIN_10_EXP as i64,
+    f128::MIN_10_EXP as i64
+)]
+#[case::max_10_exp(
+    <f128 as Customized>::Custom::MAX_10_EXP as i64,
+    f128::MAX_10_EXP as i64
+)]
+fn f128_integer_consts_match_primitive(#[case] custom: i64, #[case] primitive: i64) {
+    assert_eq!(custom, primitive);
+}
+
+#[rstest::rstest]
+#[case::epsilon(<f128 as Customized>::Custom::EPSILON, f128::EPSILON)]
+#[case::min(<f128 as Customized>::Custom::MIN, f128::MIN)]
+#[case::min_positive(
+    <f128 as Customized>::Custom::MIN_POSITIVE,
+    f128::MIN_POSITIVE
+)]
+#[case::max(<f128 as Customized>::Custom::MAX, f128::MAX)]
+#[case::nan(<f128 as Customized>::Custom::NAN, f128::NAN)]
+#[case::infinity(<f128 as Customized>::Custom::INFINITY, f128::INFINITY)]
+#[case::neg_infinity(
+    <f128 as Customized>::Custom::NEG_INFINITY,
+    f128::NEG_INFINITY
+)]
+fn f128_bit_consts_match_primitive(
+    #[case] custom: <f128 as Customized>::Custom,
+    #[case] primitive: f128,
+) {
+    assert_bits_eq(custom, primitive);
+}
+
+#[rstest::rstest]
+#[case::nan(f128::NAN)]
+#[case::signaling_nan(f128::from_bits(0x7fff0000000000000000000000000001))]
+#[case::neg_nan(f128::from_bits(0xffff8000000000000000000000000000))]
+#[case::infinity(f128::INFINITY)]
+#[case::neg_infinity(f128::NEG_INFINITY)]
+#[case::max(f128::MAX)]
+#[case::zero(0.0f128)]
+fn f128_classification_matches_primitive(#[case] primitive: f128) {
+    let custom = <<f128 as Customized>::Custom as Bitable>::from_bits(primitive.to_bits());
 
     assert_eq!(custom.is_nan(), primitive.is_nan());
     assert_eq!(custom.is_infinite(), primitive.is_infinite());
