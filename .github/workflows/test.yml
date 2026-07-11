@@ -28,6 +28,23 @@ jobs:
             target: aarch64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+        exclude:
+          - rust: "1.60"
+            features: "nightly"
+          - rust: "1.60"
+            features: "asm,nightly"
+          - rust: "1.60"
+            features: "casting,nightly"
+          - rust: "1.60"
+            features: "asm,casting,nightly"
+          - rust: "stable"
+            features: "nightly"
+          - rust: "stable"
+            features: "asm,nightly"
+          - rust: "stable"
+            features: "casting,nightly"
+          - rust: "stable"
+            features: "asm,casting,nightly"
     runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v6
@@ -39,7 +56,6 @@ jobs:
           targets: ${{ matrix.platform.target }}
 
       - name: Build
-        if: ${{ !contains(matrix.features, 'nightly') || matrix.rust == 'nightly' }}
         run: cargo build --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
 
       - name: Run tests
