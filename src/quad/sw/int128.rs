@@ -81,12 +81,17 @@ impl CastFrom<i128> for f128 {
             abs << (112 - msb_pos)
         };
 
-        let round_bit = if shift > 0 {
-            (abs >> (shift - 1)) & 1
+        let round = if shift > 0 {
+            let remainder = abs & ((1u128 << shift) - 1);
+            let halfway = 1u128 << (shift - 1);
+            u128::from(
+                remainder > halfway
+                    || (remainder == halfway && (mant_bits & F128_MANT_MASK) & 1 != 0),
+            )
         } else {
             0
         };
-        let rounded = (mant_bits & F128_MANT_MASK) + round_bit;
+        let rounded = (mant_bits & F128_MANT_MASK) + round;
 
         if rounded >= (1u128 << 112) {
             f128(sign | ((exp as u128 + 1) << 112))
@@ -119,12 +124,17 @@ impl CastFrom<u128> for f128 {
             abs << (112 - msb_pos)
         };
 
-        let round_bit = if shift > 0 {
-            (abs >> (shift - 1)) & 1
+        let round = if shift > 0 {
+            let remainder = abs & ((1u128 << shift) - 1);
+            let halfway = 1u128 << (shift - 1);
+            u128::from(
+                remainder > halfway
+                    || (remainder == halfway && (mant_bits & F128_MANT_MASK) & 1 != 0),
+            )
         } else {
             0
         };
-        let rounded = (mant_bits & F128_MANT_MASK) + round_bit;
+        let rounded = (mant_bits & F128_MANT_MASK) + round;
 
         if rounded >= (1u128 << 112) {
             f128((exp as u128 + 1) << 112)
