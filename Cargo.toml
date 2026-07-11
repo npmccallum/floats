@@ -27,7 +27,7 @@ criterion = "0.8"
 rstest = "0.26"
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["asm", "casting"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [[bench]]

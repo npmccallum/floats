@@ -26,7 +26,7 @@ the custom `f16` and `f128` types.
 
 ```toml
 [dependencies]
-floats = { version = "0.1", features = ["casting"] }
+floats = { version = "0.2", features = ["casting"] }
 casting = "0.1.1"
 ```
 
@@ -66,7 +66,7 @@ assert_eq!(half.to_bits(), 0x3C00);
 - `asm` (default): Use hardware-accelerated inline assembly for f16 conversions
   when available (aarch64 fp16, x86_64 f16c). Disable for testing or
   compatibility.
-- `casting` (default): Enable the optional `casting` dependency for
+- `casting`: Enable the optional `casting` dependency for
   `CastFrom`/`CastInto` trait implementations between `f16`/`f128` and other
   numeric types.
 - `nightly`: Disable all crate code and simply re-export the nightly
