@@ -37,9 +37,19 @@ impl CastFrom<f128> for f32 {
             return f32::from_bits((sign << 31) | F32_INF);
         }
 
-        // Underflow → zero
+        // Subnormal result.
         if f32_exp <= 0 {
-            return f32::from_bits(sign << 31);
+            let significand = mant | (1u128 << 112);
+            let shift = 89 + (1 - f32_exp) as u32;
+            if shift >= 128 {
+                return f32::from_bits(sign << 31);
+            }
+            let truncated = significand >> shift;
+            let remainder = significand & ((1u128 << shift) - 1);
+            let halfway = 1u128 << (shift - 1);
+            let rounded = truncated
+                + u128::from(remainder > halfway || (remainder == halfway && truncated & 1 != 0));
+            return f32::from_bits((sign << 31) | rounded as u32);
         }
 
         // Extract top 23 bits of 112-bit mantissa with rounding
@@ -75,9 +85,15 @@ impl CastFrom<f32> for f128 {
         let exp = ((bits >> 23) & 0xFF) as i32;
         let mant = bits & 0x7F_FFFF; // 23-bit mask
 
-        // Zero or denormalized f32 → f128 zero
+        // Zero or denormalized f32.
         if exp == 0 {
-            return f128(sign << 127);
+            if mant == 0 {
+                return f128(sign << 127);
+            }
+            let msb = 31 - mant.leading_zeros();
+            let f128_exp = (F128_EXP_BIAS - 149 + msb as i32) as u128;
+            let fraction = (mant as u128 - (1u128 << msb)) << (112 - msb);
+            return f128((sign << 127) | (f128_exp << 112) | fraction);
         }
 
         // Infinity or NaN

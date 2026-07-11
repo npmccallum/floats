@@ -38,9 +38,20 @@ impl CastFrom<f128> for f16 {
             return f16::from_bits((sign << 15) | F16_INF);
         }
 
-        // Underflow → zero
+        // Subnormal result. Shift the complete significand far enough that its
+        // leading bit lands in the subnormal fraction field.
         if f16_exp <= 0 {
-            return f16::from_bits(sign << 15);
+            let significand = mant | (1u128 << 112);
+            let shift = 102 + (1 - f16_exp) as u32;
+            if shift >= 128 {
+                return f16::from_bits(sign << 15);
+            }
+            let truncated = significand >> shift;
+            let remainder = significand & ((1u128 << shift) - 1);
+            let halfway = 1u128 << (shift - 1);
+            let rounded = truncated
+                + u128::from(remainder > halfway || (remainder == halfway && truncated & 1 != 0));
+            return f16::from_bits((sign << 15) | rounded as u16);
         }
 
         // Extract top 10 bits of 112-bit mantissa with rounding
@@ -76,9 +87,15 @@ impl CastFrom<f16> for f128 {
         let exp = ((bits >> 10) & 0x1F) as i32;
         let mant = bits & 0x3FF; // 10-bit mask
 
-        // Zero or denormalized f16 → f128 zero
+        // Zero or denormalized f16.
         if exp == 0 {
-            return f128(sign << 127);
+            if mant == 0 {
+                return f128(sign << 127);
+            }
+            let msb = 15 - mant.leading_zeros();
+            let f128_exp = (F128_EXP_BIAS - 24 + msb as i32) as u128;
+            let fraction = (mant as u128 - (1u128 << msb)) << (112 - msb);
+            return f128((sign << 127) | (f128_exp << 112) | fraction);
         }
 
         // Infinity or NaN
