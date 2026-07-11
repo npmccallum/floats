@@ -36,7 +36,14 @@ impl CastFrom<f16> for f32 {
         let exp = (bits >> 10) & 0x1F;
         let mant = bits & 0x3FF;
 
-        // Fast path: normal numbers and infinity/NaN (exponent 1-31)
+        // Infinity or NaN. Conversions quiet signaling NaNs.
+        if exp == 31 {
+            return f32::from_bits(
+                sign | F16_TO_F32_EXP[31] | (mant << 13) | if mant != 0 { 1 << 22 } else { 0 },
+            );
+        }
+
+        // Fast path: normal numbers.
         if exp != 0 {
             return f32::from_bits(sign | F16_TO_F32_EXP[exp as usize] | (mant << 13));
         }
@@ -46,9 +53,9 @@ impl CastFrom<f16> for f32 {
             return f32::from_bits(sign);
         }
 
-        // Denormalized: normalize by finding the leading 1 bit
-        let shift = mant.leading_zeros() - 22;
-        let normalized_mant = ((mant << (shift + 1)) & 0x3FF) << 13;
+        // Denormalized: normalize by finding the leading 1 bit.
+        let shift = mant.leading_zeros() - 21;
+        let normalized_mant = ((mant << shift) & 0x3FF) << 13;
         let f32_exp = (113u32 - shift) << 23;
         f32::from_bits(sign | f32_exp | normalized_mant)
     }
@@ -62,7 +69,8 @@ impl CastFrom<f32> for f16 {
         let f32_exp = (bits >> 23) & 0xFF;
         let f32_mant = bits & 0x7FFFFF;
 
-        // Zero or denormal f32 → zero
+        // Zero or denormal f32 → zero. All f32 subnormals are too small to
+        // round to a nonzero f16.
         if f32_exp == 0 {
             return Self(sign);
         }
@@ -84,20 +92,29 @@ impl CastFrom<f32> for f16 {
         // Denormalized result
         if f16_exp <= 0 {
             let shift = (14 - f16_exp) as u32;
-            return if shift >= 24 {
+            return if shift > 24 {
                 Self(sign)
             } else {
-                Self(sign | (((f32_mant | 0x800000) >> shift) as u16))
+                let significand = f32_mant | 0x800000;
+                let truncated = significand >> shift;
+                let remainder = significand & ((1u32 << shift) - 1);
+                let halfway = 1u32 << (shift - 1);
+                let rounded = truncated
+                    + u32::from(
+                        remainder > halfway || (remainder == halfway && truncated & 1 != 0),
+                    );
+                Self(sign | rounded as u16)
             };
         }
 
-        // Normal case with rounding
-        let mant = (f32_mant >> 13) as u16;
-        let round = ((f32_mant >> 12) & 1) as u16;
-        let rounded = mant + round;
+        // Normal case with round-to-nearest, ties-to-even.
+        let mant = f32_mant >> 13;
+        let remainder = f32_mant & 0x1fff;
+        let rounded =
+            mant + u32::from(remainder > 0x1000 || (remainder == 0x1000 && mant & 1 != 0));
 
         if rounded < 0x400 {
-            Self(sign | ((f16_exp as u16) << 10) | rounded)
+            Self(sign | ((f16_exp as u16) << 10) | rounded as u16)
         } else if f16_exp >= 30 {
             Self(sign | F16_INF)
         } else {

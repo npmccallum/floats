@@ -1,4 +1,4 @@
-use super::super::f16;
+use crate::f16;
 use casting::CastFrom;
 
 // F16C: f16 <-> f32 conversions (available since Ivy Bridge, 2011)
@@ -15,7 +15,7 @@ impl CastFrom<f16> for f32 {
                 "vcvtph2ps xmm0, xmm0",     // Convert f16 to f32
                 "vmovss eax, xmm0",         // Move result to output
                 in("eax") value.0 as u32,
-                out("eax") result,
+                lateout("eax") result,
                 options(pure, nomem, nostack)
             );
         }

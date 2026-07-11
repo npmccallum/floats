@@ -1,4 +1,4 @@
-use super::super::f16;
+use crate::f16;
 use casting::CastFrom;
 
 // AVX-512 FP16: f16 <-> f32 conversions (available since Sapphire Rapids, 2023)
@@ -15,7 +15,7 @@ impl CastFrom<f16> for f32 {
                 "vcvtsh2ss xmm0, xmm0, xmm0",  // Convert scalar f16 to f32
                 "vmovss eax, xmm0",         // Move result to eax
                 in("eax") value.0 as u32,
-                out("eax") result,
+                lateout("eax") result,
                 options(pure, nomem, nostack)
             );
         }
