@@ -40,7 +40,7 @@ jobs:
 
       - name: Build
         if: ${{ !contains(matrix.features, 'nightly') || matrix.rust == 'nightly' }}
-        run: cargo build --no-default-features --features "${{ matrix.features }}" --verbose
+        run: cargo build --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
 
       - name: Run tests
         if: matrix.rust == 'nightly' && contains(matrix.features, 'casting')
