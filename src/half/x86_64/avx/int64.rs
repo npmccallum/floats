@@ -1,4 +1,4 @@
-use super::super::f16;
+use crate::f16;
 use casting::CastFrom;
 
 // AVX-512 FP16: f16 <-> i64/u64 conversions (available since Sapphire Rapids, 2023)
@@ -7,14 +7,25 @@ impl CastFrom<f16> for i64 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> i64 {
+        if value.is_nan() {
+            return 0;
+        }
+        if value.is_infinite() {
+            return if value.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            };
+        }
+
         let result: i64;
 
         unsafe {
             core::arch::asm!(
                 "vmovd xmm0, eax",          // Move u16 to xmm0
-                "vcvtsh2si rax, xmm0",      // Convert scalar f16 to i64
+                "vcvttsh2si rax, xmm0",     // Convert scalar f16 to i64 (truncate)
                 in("eax") value.0 as u32,
-                out("rax") result,
+                lateout("rax") result,
                 options(pure, nomem, nostack)
             );
         }
@@ -34,7 +45,7 @@ impl CastFrom<i64> for f16 {
                 "vcvtsi2sh xmm0, xmm0, rax",   // Convert i64 to scalar f16
                 "vmovd eax, xmm0",             // Move result to eax
                 in("rax") value,
-                out("eax") result,
+                lateout("eax") result,
                 options(pure, nomem, nostack)
             );
         }
@@ -47,14 +58,21 @@ impl CastFrom<f16> for u64 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> u64 {
+        if value.is_nan() || value.is_sign_negative() {
+            return 0;
+        }
+        if value.is_infinite() {
+            return u64::MAX;
+        }
+
         let result: u64;
 
         unsafe {
             core::arch::asm!(
                 "vmovd xmm0, eax",          // Move u16 to xmm0
-                "vcvtsh2usi rax, xmm0",     // Convert scalar f16 to u64
+                "vcvttsh2usi rax, xmm0",    // Convert scalar f16 to u64 (truncate)
                 in("eax") value.0 as u32,
-                out("rax") result,
+                lateout("rax") result,
                 options(pure, nomem, nostack)
             );
         }
@@ -74,7 +92,7 @@ impl CastFrom<u64> for f16 {
                 "vcvtusi2sh xmm0, xmm0, rax",  // Convert u64 to scalar f16
                 "vmovd eax, xmm0",             // Move result to eax
                 in("rax") value,
-                out("eax") result,
+                lateout("eax") result,
                 options(pure, nomem, nostack)
             );
         }
