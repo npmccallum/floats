@@ -36,11 +36,16 @@ impl CastFrom<f16> for f32 {
         let exp = (bits >> 10) & 0x1F;
         let mant = bits & 0x3FF;
 
-        // Infinity or NaN. Conversions quiet signaling NaNs.
+        // Infinity or NaN.
         if exp == 31 {
-            return f32::from_bits(
-                sign | F16_TO_F32_EXP[31] | (mant << 13) | if mant != 0 { 1 << 22 } else { 0 },
-            );
+            // Nightly follows the target conversion semantics here: AArch64
+            // quiets signaling NaNs while x86 preserves the signaling bit.
+            let quiet = if cfg!(target_arch = "aarch64") && mant != 0 {
+                1 << 22
+            } else {
+                0
+            };
+            return f32::from_bits(sign | F16_TO_F32_EXP[31] | (mant << 13) | quiet);
         }
 
         // Fast path: normal numbers.
