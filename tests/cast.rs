@@ -30,6 +30,38 @@ use casting::CastInto;
 
 use crate::common::Customized;
 
+#[test]
+fn all_f16_values_widen_like_nightly() {
+    type CustomF16 = <f16 as Customized>::Custom;
+
+    for bits in 0..=u16::MAX {
+        let primitive = f16::from_bits(bits);
+        let custom = CustomF16::from_bits(bits);
+        let primitive_f32: f32 = primitive.cast_into();
+        let custom_f32: f32 = custom.cast_into();
+        let primitive_f64: f64 = primitive.cast_into();
+        let custom_f64: f64 = custom.cast_into();
+        let primitive_f128 = primitive as f128;
+        let custom_f128: <f128 as Customized>::Custom = custom.cast_into();
+
+        assert_eq!(
+            custom_f32.to_bits(),
+            primitive_f32.to_bits(),
+            "f16 bits {bits:#06x} -> f32"
+        );
+        assert_eq!(
+            custom_f64.to_bits(),
+            primitive_f64.to_bits(),
+            "f16 bits {bits:#06x} -> f64"
+        );
+        assert_eq!(
+            custom_f128.to_bits(),
+            primitive_f128.to_bits(),
+            "f16 bits {bits:#06x} -> f128"
+        );
+    }
+}
+
 /// Test casting FROM types that have custom equivalents (f16, f128)
 #[rstest::rstest]
 // f16 -> f32 cases
@@ -42,6 +74,8 @@ use crate::common::Customized;
 #[case::f16_f32_neg_zero(-0.0f16, -0.0f32)]
 #[case::f16_f32_zero(0.0f16, 0.0f32)]
 #[case::f16_f32_one(1.0f16, 1.0f32)]
+#[case::f16_f32_one_point_five(f16::from_bits(0x3e00), 1.5f32)]
+#[case::f16_f32_smallest_subnormal(f16::from_bits(0x0001), f32::from_bits(0x33800000))]
 #[case::f16_f32_subnormal_minus_one(2.0f16.powi(f16::MANTISSA_DIGITS as i32) - 1.0, (2.0f32.powi(f16::MANTISSA_DIGITS as i32)) - 1.0)]
 #[case::f16_f32_subnormal(2.0f16.powi(f16::MANTISSA_DIGITS as i32), 2.0f32.powi(f16::MANTISSA_DIGITS as i32))]
 #[case::f16_f32_max(f16::MAX, f16::MAX as f32)]
@@ -57,6 +91,7 @@ use crate::common::Customized;
 #[case::f16_f64_neg_zero(-0.0f16, -0.0f64)]
 #[case::f16_f64_zero(0.0f16, 0.0f64)]
 #[case::f16_f64_one(1.0f16, 1.0f64)]
+#[case::f16_f64_smallest_subnormal(f16::from_bits(0x0001), f64::from_bits(0x3e70000000000000))]
 #[case::f16_f64_subnormal_minus_one(2.0f16.powi(f16::MANTISSA_DIGITS as i32) - 1.0, (2.0f64.powi(f16::MANTISSA_DIGITS as i32)) - 1.0)]
 #[case::f16_f64_subnormal(2.0f16.powi(f16::MANTISSA_DIGITS as i32), 2.0f64.powi(f16::MANTISSA_DIGITS as i32))]
 #[case::f16_f64_max(f16::MAX, f16::MAX as f64)]
@@ -87,21 +122,29 @@ use crate::common::Customized;
 #[case::f16_u32_max(u32::MAX as f16, u32::MAX)]
 #[case::f16_u32_default(u32::default() as f16, u32::default())]
 #[case::f16_u32_one(1.0f16, 1u32)]
+#[case::f16_u32_one_point_five(f16::from_bits(0x3e00), 1u32)]
+#[case::f16_u32_nan(f16::NAN, 0u32)]
 // f16 -> i32 cases
 #[case::f16_i32_min(i32::MIN as f16, i32::MIN)]
 #[case::f16_i32_max(i32::MAX as f16, i32::MAX)]
 #[case::f16_i32_default(i32::default() as f16, i32::default())]
 #[case::f16_i32_one(1.0f16, 1i32)]
+#[case::f16_i32_one_point_five(f16::from_bits(0x3e00), 1i32)]
+#[case::f16_i32_nan(f16::NAN, 0i32)]
 // f16 -> u64 cases
 #[case::f16_u64_min(u64::MIN as f16, u64::MIN)]
 #[case::f16_u64_max(u64::MAX as f16, u64::MAX)]
 #[case::f16_u64_default(u64::default() as f16, u64::default())]
 #[case::f16_u64_one(1.0f16, 1u64)]
+#[case::f16_u64_one_point_five(f16::from_bits(0x3e00), 1u64)]
+#[case::f16_u64_nan(f16::NAN, 0u64)]
 // f16 -> i64 cases
 #[case::f16_i64_min(i64::MIN as f16, i64::MIN)]
 #[case::f16_i64_max(i64::MAX as f16, i64::MAX)]
 #[case::f16_i64_default(i64::default() as f16, i64::default())]
 #[case::f16_i64_one(1.0f16, 1i64)]
+#[case::f16_i64_one_point_five(f16::from_bits(0x3e00), 1i64)]
+#[case::f16_i64_nan(f16::NAN, 0i64)]
 // f16 -> u128 cases
 #[case::f16_u128_min(u128::MIN as f16, u128::MIN)]
 #[case::f16_u128_max(u128::MAX as f16, u128::MAX)] // breaks when optimization is off
@@ -122,6 +165,10 @@ use crate::common::Customized;
 #[case::f128_f64_neg_zero(-0.0f128, -0.0f64)]
 #[case::f128_f64_zero(0.0f128, 0.0f64)]
 #[case::f128_f64_one(1.0f128, 1.0f64)]
+#[case::f128_f64_subnormal_result(
+    f128::from_bits(15360u128 << 112),
+    f64::from_bits(0x0008_0000_0000_0000)
+)]
 #[case::f128_f64_subnormal_minus_one(2.0f128.powi(f64::MANTISSA_DIGITS as i32) - 1.0, 2.0f64.powi(f64::MANTISSA_DIGITS as i32) - 1.0)]
 #[case::f128_f64_subnormal(2.0f128.powi(f64::MANTISSA_DIGITS as i32), 2.0f64.powi(f64::MANTISSA_DIGITS as i32))]
 #[case::f128_f64_max(f64::MAX as f128, f64::MAX)]
@@ -135,6 +182,10 @@ use crate::common::Customized;
 #[case::f128_f32_neg_zero(-0.0f128, -0.0f32)]
 #[case::f128_f32_zero(0.0f128, 0.0f32)]
 #[case::f128_f32_one(1.0f128, 1.0f32)]
+#[case::f128_f32_subnormal_result(
+    f128::from_bits(16256u128 << 112),
+    f32::from_bits(0x0040_0000)
+)]
 #[case::f128_f32_max(f32::MAX as f128, f32::MAX)]
 #[case::f128_f32_inf(f128::INFINITY, f32::INFINITY)]
 #[case::f128_f32_nan(f128::NAN, f32::NAN)]
@@ -221,11 +272,18 @@ where
 #[case::f32_f16_neg_zero(-0.0f32, -0.0f16)]
 #[case::f32_f16_zero(0.0f32, 0.0f16)]
 #[case::f32_f16_one(1.0f32, 1.0f16)]
+#[case::f32_f16_tie_to_even(1.00048828125f32, f16::from_bits(0x3c00))]
+#[case::f32_f16_subnormal_round_up(f32::from_bits(0x3340_0000), f16::from_bits(0x0001))]
 #[case::f32_f16_subnormal_minus_one((2.0f32.powi(f16::MANTISSA_DIGITS as i32)) - 1.0, 2.0f16.powi(f16::MANTISSA_DIGITS as i32) - 1.0)]
 #[case::f32_f16_subnormal(2.0f32.powi(f16::MANTISSA_DIGITS as i32), 2.0f16.powi(f16::MANTISSA_DIGITS as i32))]
 #[case::f32_f16_max(f16::MAX as f32, f16::MAX)]
 #[case::f32_f16_inf(f32::INFINITY, f16::INFINITY)]
 #[case::f32_f16_nan(f32::NAN, f16::NAN)]
+// f64 -> f16 cases
+#[case::f64_f16_double_rounding(
+    f64::from_bits(0x3ff0_05ff_ffff_ffff),
+    f64::from_bits(0x3ff0_05ff_ffff_ffff) as f16
+)]
 // u8 -> f16 cases
 #[case::u8_f16_min(u8::MIN, u8::MIN as f16)]
 #[case::u8_f16_max(u8::MAX, u8::MAX as f16)]
@@ -286,6 +344,10 @@ where
 #[case::f64_f128_neg_zero(-0.0f64, -0.0f128)]
 #[case::f64_f128_zero(0.0f64, 0.0f128)]
 #[case::f64_f128_one(1.0f64, 1.0f128)]
+#[case::f64_f128_smallest_subnormal(
+    f64::from_bits(0x0000_0000_0000_0001),
+    f64::from_bits(0x0000_0000_0000_0001) as f128
+)]
 #[case::f64_f128_subnormal_minus_one(2.0f64.powi(f64::MANTISSA_DIGITS as i32) - 1.0, 2.0f128.powi(f64::MANTISSA_DIGITS as i32) - 1.0)]
 #[case::f64_f128_subnormal(2.0f64.powi(f64::MANTISSA_DIGITS as i32), 2.0f128.powi(f64::MANTISSA_DIGITS as i32))]
 #[case::f64_f128_max(f64::MAX, f64::MAX as f128)]
@@ -299,6 +361,10 @@ where
 #[case::f32_f128_neg_zero(-0.0f32, -0.0f128)]
 #[case::f32_f128_zero(0.0f32, 0.0f128)]
 #[case::f32_f128_one(1.0f32, 1.0f128)]
+#[case::f32_f128_smallest_subnormal(
+    f32::from_bits(0x0000_0001),
+    f32::from_bits(0x0000_0001) as f128
+)]
 #[case::f32_f128_max(f32::MAX, f32::MAX as f128)]
 #[case::f32_f128_inf(f32::INFINITY, f128::INFINITY)]
 #[case::f32_f128_nan(f32::NAN, f128::NAN)]
@@ -347,11 +413,19 @@ where
 #[case::u128_f128_max(u128::MAX, u128::MAX as f128)] // breaks when optimization is off
 #[case::u128_f128_default(u128::default(), u128::default() as f128)]
 #[case::u128_f128_one(1u128, 1.0f128)]
+#[case::u128_f128_tie_to_even(
+    (1u128 << 113) + 1,
+    ((1u128 << 113) + 1) as f128
+)]
 // i128 -> f128 cases
 #[case::i128_f128_min(i128::MIN, i128::MIN as f128)] // breaks when optimization is off
 #[case::i128_f128_max(i128::MAX, i128::MAX as f128)] // breaks when optimization is off
 #[case::i128_f128_default(i128::default(), i128::default() as f128)]
 #[case::i128_f128_one(1i128, 1.0f128)]
+#[case::i128_f128_tie_to_even(
+    (1i128 << 113) + 1,
+    ((1i128 << 113) + 1) as f128
+)]
 fn test_cast_into<F, I>(#[case] from: F, #[case] into: I)
 where
     F: Copy + Bitable + CastInto<I> + CastInto<I::Custom>,
@@ -382,6 +456,10 @@ where
 #[case::f128_f16_neg_zero(-0.0f128, -0.0f16)]
 #[case::f128_f16_zero(0.0f128, 0.0f16)]
 #[case::f128_f16_one(1.0f128, 1.0f16)]
+#[case::f128_f16_subnormal_result(
+    f128::from_bits(16368u128 << 112),
+    f16::from_bits(0x0200)
+)]
 #[case::f128_f16_max(f128::MAX, f16::from_bits(0x7c00))]
 #[case::f128_f16_inf(f128::INFINITY, f16::INFINITY)]
 #[case::f128_f16_nan(f128::NAN, f16::NAN)]
@@ -393,6 +471,10 @@ where
 #[case::f16_f128_neg_zero(-0.0f16, -0.0f128)]
 #[case::f16_f128_zero(0.0f16, 0.0f128)]
 #[case::f16_f128_one(1.0f16, 1.0f128)]
+#[case::f16_f128_smallest_subnormal(
+    f16::from_bits(0x0001),
+    f16::from_bits(0x0001) as f128
+)]
 #[case::f16_f128_max(f16::MAX, f16::MAX as f128)]
 #[case::f16_f128_inf(f16::INFINITY, f128::INFINITY)]
 #[case::f16_f128_nan(f16::NAN, f128::NAN)]
