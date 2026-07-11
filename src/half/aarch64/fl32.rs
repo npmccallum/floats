@@ -9,10 +9,11 @@ impl CastFrom<f16> for f32 {
 
         unsafe {
             core::arch::asm!(
-                "fmov h0, w0",      // Move u16 from w0 to h0
-                "fcvt s0, h0",      // Convert f16 in h0 to f32 in s0
-                in("w0") value.0,
-                out("s0") result,
+                "fmov {tmp:h}, {input:w}",  // Move u16 into a vector register as f16
+                "fcvt {output:s}, {tmp:h}", // Convert f16 to f32
+                input = in(reg) value.0,
+                tmp = out(vreg) _,
+                output = lateout(vreg) result,
                 options(pure, nomem, nostack)
             );
         }
@@ -29,10 +30,11 @@ impl CastFrom<f32> for f16 {
 
         unsafe {
             core::arch::asm!(
-                "fcvt h0, s0",      // Convert f32 in s0 to f16 in h0
-                "fmov w0, h0",      // Move f16 from h0 to w0 (u16 in low bits)
-                in("s0") value,
-                out("w0") result,
+                "fcvt {tmp:h}, {input:s}",  // Convert f32 to f16
+                "fmov {output:w}, {tmp:h}", // Move f16 to a GPR (u16 in low bits)
+                input = in(vreg) value,
+                tmp = out(vreg) _,
+                output = lateout(reg) result,
                 options(pure, nomem, nostack)
             );
         }
