@@ -1,3 +1,4 @@
+#[cfg(not(feature = "nightly"))]
 use floats::{f128 as F128, f16 as F16};
 
 // Helper trait for converting to/from bits generically

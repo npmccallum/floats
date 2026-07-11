@@ -58,13 +58,22 @@ fn f16_bit_consts_match_primitive(
 #[case::infinity(f16::INFINITY)]
 #[case::neg_infinity(f16::NEG_INFINITY)]
 #[case::max(f16::MAX)]
+#[case::min(f16::MIN)]
+#[case::min_positive(f16::MIN_POSITIVE)]
+#[case::subnormal(f16::from_bits(0x0001))]
+#[case::neg_subnormal(f16::from_bits(0x8001))]
 #[case::zero(0.0f16)]
+#[case::neg_zero(-0.0f16)]
+#[case::one(1.0f16)]
+#[case::neg_one(-1.0f16)]
 fn f16_classification_matches_primitive(#[case] primitive: f16) {
     let custom = <<f16 as Customized>::Custom as Bitable>::from_bits(primitive.to_bits());
 
     assert_eq!(custom.is_nan(), primitive.is_nan());
     assert_eq!(custom.is_infinite(), primitive.is_infinite());
     assert_eq!(custom.is_finite(), primitive.is_finite());
+    assert_eq!(custom.is_sign_positive(), primitive.is_sign_positive());
+    assert_eq!(custom.is_sign_negative(), primitive.is_sign_negative());
 }
 
 #[rstest::rstest]
@@ -122,13 +131,22 @@ fn f128_bit_consts_match_primitive(
 #[case::infinity(f128::INFINITY)]
 #[case::neg_infinity(f128::NEG_INFINITY)]
 #[case::max(f128::MAX)]
+#[case::min(f128::MIN)]
+#[case::min_positive(f128::MIN_POSITIVE)]
+#[case::subnormal(f128::from_bits(0x00000000000000000000000000000001))]
+#[case::neg_subnormal(f128::from_bits(0x80000000000000000000000000000001))]
 #[case::zero(0.0f128)]
+#[case::neg_zero(-0.0f128)]
+#[case::one(1.0f128)]
+#[case::neg_one(-1.0f128)]
 fn f128_classification_matches_primitive(#[case] primitive: f128) {
     let custom = <<f128 as Customized>::Custom as Bitable>::from_bits(primitive.to_bits());
 
     assert_eq!(custom.is_nan(), primitive.is_nan());
     assert_eq!(custom.is_infinite(), primitive.is_infinite());
     assert_eq!(custom.is_finite(), primitive.is_finite());
+    assert_eq!(custom.is_sign_positive(), primitive.is_sign_positive());
+    assert_eq!(custom.is_sign_negative(), primitive.is_sign_negative());
 }
 
 fn assert_bits_eq<T, U>(custom: T, primitive: U)
