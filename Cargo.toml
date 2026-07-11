@@ -22,7 +22,7 @@ nightly = ["casting?/nightly"]
 asm = []
 
 [dev-dependencies]
-casting = { version = "0.1.1", features = ["nightly"], optional = false }
+casting = { version = "0.1.1", features = ["nightly"] }
 criterion = "0.8"
 rstest = "0.26"
 
