@@ -60,4 +60,39 @@ jobs:
 
       - name: Run tests
         if: matrix.rust == 'nightly' && contains(matrix.features, 'casting') && !contains(matrix.features, 'nightly')
-        run: cargo test --no-default-features --features "${{ matrix.features }}" --verbose
+        run: cargo test --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
+
+  # The x86_64 acceleration is gated on `target_feature`, which no target enables
+  # by default: `x86_64-unknown-linux-gnu` baselines at sse2. Without an explicit
+  # RUSTFLAGS the `src/half/x86_64` trees are never compiled, so a build break
+  # there reaches users through their own codegen rather than through CI.
+  #
+  # F16C is available on every GitHub x86_64 runner (Ivy Bridge and later), so
+  # those tests are executed. AVX-512 FP16 needs Sapphire Rapids, so it is only
+  # built -- and built as a test binary, since the conversions are `#[inline]`
+  # and are not codegen'd for an rlib alone.
+  x86-target-features:
+    name: x86_64 (${{ matrix.target_feature }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target_feature: ["+f16c", "+avx512fp16"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Build tests
+        env:
+          RUSTFLAGS: "-C target-feature=${{ matrix.target_feature }}"
+        run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --no-run --verbose
+
+      - name: Run tests
+        if: matrix.target_feature == '+f16c'
+        env:
+          RUSTFLAGS: "-C target-feature=${{ matrix.target_feature }}"
+        run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --verbose
