@@ -3,6 +3,9 @@
 //! These tests verify that our f16/f128 constants and classification methods
 //! behave identically to the nightly standard library types.
 
+// The `nightly` feature re-exports std's f16/f128, which would make these
+// comparisons std-vs-std and therefore vacuous.
+#![cfg(not(feature = "nightly"))]
 #![feature(f16, f128)]
 
 mod common;

@@ -11,7 +11,9 @@
 //! `black_box` to keep the value genuinely live (otherwise constant folding
 //! computes the result at compile time and the clobber goes unnoticed).
 
-#![cfg(feature = "casting")]
+// The `nightly` feature re-exports the standard library's f16, so there is no
+// inline assembly of ours left to regress against.
+#![cfg(all(feature = "casting", not(feature = "nightly")))]
 
 use std::hint::black_box;
 
