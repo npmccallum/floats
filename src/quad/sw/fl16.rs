@@ -22,7 +22,15 @@ impl CastFrom<f128> for f16 {
 
         // Infinity or NaN
         if exp == 0x7FFF {
-            return f16::from_bits((sign << 15) | if mant != 0 { 0x7E00 } else { F16_INF });
+            let payload = (mant >> 102) as u16;
+            return f16::from_bits(
+                (sign << 15)
+                    | if mant != 0 {
+                        F16_INF | 0x0200 | payload
+                    } else {
+                        F16_INF
+                    },
+            );
         }
 
         // Denormalized f128 → zero (too small for f16)

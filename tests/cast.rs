@@ -174,6 +174,18 @@ fn all_f16_values_widen_like_nightly() {
 #[case::f128_f64_max(f64::MAX as f128, f64::MAX)]
 #[case::f128_f64_inf(f128::INFINITY, f64::INFINITY)]
 #[case::f128_f64_nan(f128::NAN, f64::NAN)]
+#[case::f128_f64_quiet_nan_payload(
+    f128::from_bits(0x7fff_8400_0400_0000_0000_0000_0000_0000),
+    f64::from_bits(0x7ff8_4000_4000_0000)
+)]
+#[case::f128_f64_neg_signaling_nan_payload(
+    f128::from_bits(0xffff_2080_0000_0000_1000_0000_0000_0000),
+    f64::from_bits(0xfffa_0800_0000_0001)
+)]
+#[case::f128_f64_truncated_nan_payload(
+    f128::from_bits(0x7fff_0000_0000_0000_0000_0000_0000_0001),
+    f64::from_bits(0x7ff8_0000_0000_0000)
+)]
 // f128 -> f32 cases
 #[case::f128_f32_neg_nan(-f128::NAN, -f32::NAN)]
 #[case::f128_f32_neg_inf(f128::NEG_INFINITY, f32::NEG_INFINITY)]
@@ -189,6 +201,18 @@ fn all_f16_values_widen_like_nightly() {
 #[case::f128_f32_max(f32::MAX as f128, f32::MAX)]
 #[case::f128_f32_inf(f128::INFINITY, f32::INFINITY)]
 #[case::f128_f32_nan(f128::NAN, f32::NAN)]
+#[case::f128_f32_quiet_nan_payload(
+    f128::from_bits(0x7fff_8400_0400_0000_0000_0000_0000_0000),
+    f32::from_bits(0x7fc2_0002)
+)]
+#[case::f128_f32_neg_signaling_nan_payload(
+    f128::from_bits(0xffff_2080_0000_0000_1000_0000_0000_0000),
+    f32::from_bits(0xffd0_4000)
+)]
+#[case::f128_f32_truncated_nan_payload(
+    f128::from_bits(0x7fff_0000_0000_0000_0000_0000_0000_0001),
+    f32::from_bits(0x7fc0_0000)
+)]
 // f128 -> u8 cases
 #[case::f128_u8_min(u8::MIN as f128, u8::MIN)]
 #[case::f128_u8_max(u8::MAX as f128, u8::MAX)]
@@ -475,6 +499,18 @@ where
 #[case::f128_f16_max(f128::MAX, f16::from_bits(0x7c00))]
 #[case::f128_f16_inf(f128::INFINITY, f16::INFINITY)]
 #[case::f128_f16_nan(f128::NAN, f16::NAN)]
+#[case::f128_f16_quiet_nan_payload(
+    f128::from_bits(0x7fff_8400_0400_0000_0000_0000_0000_0000),
+    f16::from_bits(0x7e10)
+)]
+#[case::f128_f16_neg_signaling_nan_payload(
+    f128::from_bits(0xffff_2080_0000_0000_1000_0000_0000_0000),
+    f16::from_bits(0xfe82)
+)]
+#[case::f128_f16_truncated_nan_payload(
+    f128::from_bits(0x7fff_0000_0000_0000_0000_0000_0000_0001),
+    f16::from_bits(0x7e00)
+)]
 // f16 -> f128 cases
 #[case::f16_f128_neg_nan(-f16::NAN, -f128::NAN)]
 #[case::f16_f128_neg_inf(f16::NEG_INFINITY, f128::NEG_INFINITY)]

@@ -22,7 +22,15 @@ impl CastFrom<f128> for f64 {
 
         // Infinity or NaN
         if exp == 0x7FFF {
-            return f64::from_bits((sign << 63) | if mant != 0 { F64_QNAN } else { F64_INF });
+            let payload = (mant >> 60) as u64;
+            return f64::from_bits(
+                (sign << 63)
+                    | if mant != 0 {
+                        F64_QNAN | payload
+                    } else {
+                        F64_INF
+                    },
+            );
         }
 
         // Denormalized f128 → zero (too small for f64)
