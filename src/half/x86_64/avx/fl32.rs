@@ -21,7 +21,7 @@ impl CastFrom<f16> for f32 {
                 input = in(reg) value.0 as u32,
                 tmp = out(xmm_reg) _,
                 out = lateout(xmm_reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -42,7 +42,7 @@ impl CastFrom<f32> for f16 {
                 input = in(xmm_reg) value,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 

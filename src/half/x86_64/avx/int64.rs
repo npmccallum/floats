@@ -29,7 +29,7 @@ impl CastFrom<f16> for i64 {
                 input = in(reg) value.0 as u32,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -50,7 +50,7 @@ impl CastFrom<i64> for f16 {
                 input = in(reg) value,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -78,7 +78,7 @@ impl CastFrom<f16> for u64 {
                 input = in(reg) value.0 as u32,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -99,7 +99,7 @@ impl CastFrom<u64> for f16 {
                 input = in(reg) value,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 

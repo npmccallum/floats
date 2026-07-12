@@ -113,3 +113,65 @@ fn u64_casts_preserve_float_accumulator() {
     assert_eq!(acc, 256.0, "float accumulator corrupted across u64 casts");
     assert_eq!(usum, 28);
 }
+
+#[cfg(all(feature = "asm", target_arch = "aarch64", target_feature = "fp16"))]
+#[test]
+fn f64_narrowing_observes_fpcr_rounding_mode() {
+    const ROUNDING_MODE_MASK: u64 = 0b11 << 22;
+    const ROUND_TOWARD_POSITIVE: u64 = 0b01 << 22;
+
+    struct RestoreFpcr(u64);
+
+    impl Drop for RestoreFpcr {
+        fn drop(&mut self) {
+            // SAFETY: restoring this thread's saved FPCR value.
+            unsafe { write_fpcr(self.0) };
+        }
+    }
+
+    #[inline(always)]
+    fn narrow(value: f64) -> u16 {
+        f16::cast_from(value).to_bits()
+    }
+
+    #[inline]
+    unsafe fn read_fpcr() -> u64 {
+        let value;
+        // SAFETY: reading FPCR has no memory-safety preconditions.
+        unsafe {
+            core::arch::asm!(
+                "mrs {value}, fpcr",
+                value = out(reg) value,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        value
+    }
+
+    #[inline]
+    unsafe fn write_fpcr(value: u64) {
+        // SAFETY: the caller supplies an FPCR value and is responsible for
+        // restoring it before returning control to unrelated code.
+        unsafe {
+            core::arch::asm!(
+                "msr fpcr, {value}",
+                value = in(reg) value,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+    }
+
+    // SAFETY: the saved value is restored by the guard before this test exits.
+    let original = unsafe { read_fpcr() };
+    let _restore = RestoreFpcr(original);
+    let nearest = original & !ROUNDING_MODE_MASK;
+
+    // SAFETY: both writes preserve all FPCR fields except the rounding mode.
+    unsafe { write_fpcr(nearest) };
+    let rounded_nearest = narrow(1.00048828125);
+    unsafe { write_fpcr(nearest | ROUND_TOWARD_POSITIVE) };
+    let rounded_up = narrow(1.00048828125);
+
+    assert_eq!(rounded_nearest, 0x3c00);
+    assert_eq!(rounded_up, 0x3c01);
+}

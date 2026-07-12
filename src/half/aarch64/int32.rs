@@ -25,7 +25,7 @@ impl CastFrom<f16> for i32 {
                 input = in(reg) value.0,
                 tmp = out(vreg) _,
                 output = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -46,7 +46,7 @@ impl CastFrom<i32> for f16 {
                 input = in(reg) value,
                 tmp = out(vreg) _,
                 output = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -74,7 +74,7 @@ impl CastFrom<f16> for u32 {
                 input = in(reg) value.0,
                 tmp = out(vreg) _,
                 output = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -95,7 +95,7 @@ impl CastFrom<u32> for f16 {
                 input = in(reg) value,
                 tmp = out(vreg) _,
                 output = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 

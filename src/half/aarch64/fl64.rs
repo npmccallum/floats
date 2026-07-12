@@ -14,7 +14,7 @@ impl CastFrom<f16> for f64 {
                 input = in(reg) value.0,
                 tmp = out(vreg) _,
                 output = lateout(vreg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
@@ -35,7 +35,7 @@ impl CastFrom<f64> for f16 {
                 input = in(vreg) value,
                 tmp = out(vreg) _,
                 output = lateout(reg) result,
-                options(pure, nomem, nostack)
+                options(nomem, nostack)
             );
         }
 
