@@ -82,8 +82,15 @@ impl CastFrom<f32> for f16 {
 
         // Infinity or NaN
         if f32_exp == 255 {
-            // Preserve NaN payload (use quiet NaN bit)
-            return Self(sign | F16_INF | if f32_mant != 0 { 0x0200 } else { 0 });
+            if f32_mant == 0 {
+                return Self(sign | F16_INF);
+            }
+
+            // Preserve the high payload bits, as nightly does. The quiet bit is
+            // forced on so that a payload living entirely in the truncated low
+            // bits cannot turn the NaN into an infinity.
+            let payload = (f32_mant >> 13) as u16 & 0x03FF;
+            return Self(sign | F16_INF | 0x0200 | payload);
         }
 
         // Rebias exponent

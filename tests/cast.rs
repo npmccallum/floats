@@ -279,11 +279,23 @@ where
 #[case::f32_f16_max(f16::MAX as f32, f16::MAX)]
 #[case::f32_f16_inf(f32::INFINITY, f16::INFINITY)]
 #[case::f32_f16_nan(f32::NAN, f16::NAN)]
+// NaN payloads must survive narrowing, not collapse to the default quiet NaN.
+// `f32::NAN` alone cannot catch this: its payload is exactly the quiet bit, the
+// one value a payload-discarding implementation happens to get right.
+#[case::f32_f16_nan_payload(f32::from_bits(0x7fc0_2000), f16::from_bits(0x7e01))]
+#[case::f32_f16_nan_payload_all_ones(f32::from_bits(0x7fff_ffff), f16::from_bits(0x7fff))]
+#[case::f32_f16_nan_payload_neg(f32::from_bits(0xffc8_0000), f16::from_bits(0xfe40))]
+// A payload living entirely in the truncated low bits must stay a NaN rather
+// than degenerating into an infinity.
+#[case::f32_f16_nan_payload_low_bits(f32::from_bits(0x7f80_0001), f16::from_bits(0x7e00))]
 // f64 -> f16 cases
 #[case::f64_f16_double_rounding(
     f64::from_bits(0x3ff0_05ff_ffff_ffff),
     f64::from_bits(0x3ff0_05ff_ffff_ffff) as f16
 )]
+#[case::f64_f16_nan_payload(f64::from_bits(0x7ff8_0400_0000_0000), f16::from_bits(0x7e01))]
+#[case::f64_f16_nan_payload_all_ones(f64::from_bits(0x7fff_ffff_ffff_ffff), f16::from_bits(0x7fff))]
+#[case::f64_f16_nan_payload_low_bits(f64::from_bits(0x7ff0_0000_0000_0001), f16::from_bits(0x7e00))]
 // u8 -> f16 cases
 #[case::u8_f16_min(u8::MIN, u8::MIN as f16)]
 #[case::u8_f16_max(u8::MAX, u8::MAX as f16)]

@@ -26,7 +26,15 @@ impl CastFrom<f64> for f16 {
         }
 
         if exp == 0x7ff {
-            return f16(sign | 0x7c00 | if mant != 0 { 0x0200 } else { 0 });
+            if mant == 0 {
+                return f16(sign | 0x7c00);
+            }
+
+            // Preserve the high payload bits, as nightly does. The quiet bit is
+            // forced on so that a payload living entirely in the truncated low
+            // bits cannot turn the NaN into an infinity.
+            let payload = (mant >> 42) as u16 & 0x03FF;
+            return f16(sign | 0x7c00 | 0x0200 | payload);
         }
 
         let f16_exp = exp - 1008;
