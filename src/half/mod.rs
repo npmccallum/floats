@@ -1,6 +1,7 @@
 use core::ops::Neg;
 
 mod aarch64;
+mod debug;
 mod sw;
 mod x86_64;
 
@@ -8,7 +9,7 @@ mod x86_64;
 ///
 /// This provides a minimal implementation with construction methods and
 /// conversions through f32.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Copy, Default)]
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
 pub struct f16(pub(crate) u16);

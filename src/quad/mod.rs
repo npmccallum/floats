@@ -6,10 +6,17 @@ mod sw;
 ///
 /// This provides a minimal implementation with construction methods and
 /// conversions through f64.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Copy, Default)]
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
 pub struct f128(pub(crate) u128);
+
+impl core::fmt::Debug for f128 {
+    #[inline]
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "{:#034x}", self.0)
+    }
+}
 
 impl Neg for f128 {
     type Output = Self;
