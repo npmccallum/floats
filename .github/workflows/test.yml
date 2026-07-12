@@ -18,16 +18,26 @@ jobs:
         rust: ["1.60", "stable", "nightly"]
         features: ["", "asm", "casting", "nightly", "asm,casting", "asm,nightly", "casting,nightly", "asm,casting,nightly"]
         platform:
+          # `runnable` marks targets whose binaries the runner can execute, so
+          # the test step knows where it can do more than cross-compile.
+          # aarch64-unknown-linux-gnu is cross-built from an x86_64 runner: its
+          # binaries cannot be executed, and its C dev-dependencies would need
+          # an aarch64-linux-gnu toolchain to even link.
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            runnable: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
+            runnable: false
           - os: macos-latest
             target: x86_64-apple-darwin
+            runnable: true # via Rosetta
           - os: macos-latest
             target: aarch64-apple-darwin
+            runnable: true
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            runnable: true
         exclude:
           - rust: "1.60"
             features: "nightly"
@@ -59,7 +69,7 @@ jobs:
         run: cargo build --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
 
       - name: Run tests
-        if: matrix.rust == 'nightly' && contains(matrix.features, 'casting') && !contains(matrix.features, 'nightly')
+        if: matrix.platform.runnable && matrix.rust == 'nightly' && contains(matrix.features, 'casting') && !contains(matrix.features, 'nightly')
         run: cargo test --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
 
   # The x86_64 acceleration is gated on `target_feature`, which no target enables
