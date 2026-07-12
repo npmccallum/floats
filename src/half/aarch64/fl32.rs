@@ -1,3 +1,7 @@
+// These AArch64 types and intrinsics compile on the crate's Rust 1.60 MSRV,
+// but current Clippy associates them with the later primitive-f16 stabilization.
+#![allow(clippy::incompatible_msrv)]
+
 use super::super::f16;
 use casting::CastFrom;
 

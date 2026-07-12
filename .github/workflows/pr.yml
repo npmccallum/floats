@@ -44,11 +44,11 @@ jobs:
         with:
           components: clippy
 
-      - name: Run Clippy (with asm)
-        run: cargo clippy -- -D warnings
+      - name: Run Clippy (with asm and casting)
+        run: cargo clippy --features casting -- -D warnings
 
-      - name: Run Clippy (no asm)
-        run: cargo clippy --no-default-features -- -D warnings
+      - name: Run Clippy (software casting)
+        run: cargo clippy --no-default-features --features casting -- -D warnings
 
   fmt:
     name: Format
@@ -88,7 +88,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Generate code coverage
-        run: cargo tarpaulin --out xml
+        run: cargo tarpaulin --out xml --no-default-features --features casting
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
