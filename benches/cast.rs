@@ -6,8 +6,9 @@
 #![feature(f16, f128)]
 #![allow(deprecated)]
 
-// Workaround for missing compiler-rt symbols on macOS
-// Double-casting strategy: go through f64 as an intermediate type
+// Link shims for compiler-rt symbols missing on macOS. Benchmarks that would
+// use these artificial double casts are not registered on macOS, because they
+// are not valid measurements of the nightly implementation.
 #[cfg(target_os = "macos")]
 #[no_mangle]
 pub extern "C" fn __floattihf(a: i128) -> f16 {
@@ -20,7 +21,7 @@ pub extern "C" fn __floatuntihf(a: u128) -> f16 {
     (a as f64) as f16
 }
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
 use casting::CastInto;
 use floats::{f128 as F128, f16 as F16};
@@ -37,18 +38,19 @@ macro_rules! bench_impl {
         $src_std_ty:ty, $src_custom_ty:ty, $dst_ty:ty
     ) => {
         fn $into_fn(c: &mut Criterion) {
-            let std_values = $into_rep;
+            let std_values = black_box($into_rep);
             let custom_values: Vec<$src_custom_ty> = std_values
                 .iter()
                 .map(|&v| <$src_custom_ty>::from_bits(v.to_bits()))
                 .collect();
 
             let mut group = c.benchmark_group($into_group);
+            group.throughput(Throughput::Elements(std_values.len() as u64));
 
             group.bench_function("custom", |b| {
                 b.iter(|| {
-                    for &v in &custom_values {
-                        let result: $dst_ty = v.cast_into();
+                    for &v in black_box(custom_values.as_slice()) {
+                        let result: $dst_ty = black_box(v).cast_into();
                         black_box(result);
                     }
                 })
@@ -56,8 +58,8 @@ macro_rules! bench_impl {
 
             group.bench_function("std", |b| {
                 b.iter(|| {
-                    for &v in std_values {
-                        black_box(v as $dst_ty);
+                    for &v in black_box(std_values) {
+                        black_box(black_box(v) as $dst_ty);
                     }
                 })
             });
@@ -65,15 +67,17 @@ macro_rules! bench_impl {
             group.finish();
         }
 
+        #[cfg_attr(target_os = "macos", allow(dead_code))]
         fn $from_fn(c: &mut Criterion) {
-            let values = $from_rep;
+            let values = black_box($from_rep);
 
             let mut group = c.benchmark_group($from_group);
+            group.throughput(Throughput::Elements(values.len() as u64));
 
             group.bench_function("custom", |b| {
                 b.iter(|| {
-                    for &v in values {
-                        let result: $src_custom_ty = v.cast_into();
+                    for &v in black_box(values) {
+                        let result: $src_custom_ty = black_box(v).cast_into();
                         black_box(result);
                     }
                 })
@@ -81,8 +85,8 @@ macro_rules! bench_impl {
 
             group.bench_function("std", |b| {
                 b.iter(|| {
-                    for &v in values {
-                        black_box(v as $src_std_ty);
+                    for &v in black_box(values) {
+                        black_box(black_box(v) as $src_std_ty);
                     }
                 })
             });
@@ -294,6 +298,62 @@ bench_impl! {
     f128, F128, f64
 }
 
+fn bench_f16_into_f128(c: &mut Criterion) {
+    let std_values = black_box(F16_VALUES);
+    let custom_values: Vec<F16> = std_values
+        .iter()
+        .map(|&value| F16::from_bits(value.to_bits()))
+        .collect();
+    let mut group = c.benchmark_group("f16_into_f128");
+    group.throughput(Throughput::Elements(std_values.len() as u64));
+
+    group.bench_function("custom", |b| {
+        b.iter(|| {
+            for &value in black_box(custom_values.as_slice()) {
+                black_box(<F128 as casting::CastFrom<F16>>::cast_from(black_box(
+                    value,
+                )));
+            }
+        })
+    });
+    group.bench_function("std", |b| {
+        b.iter(|| {
+            for &value in black_box(std_values) {
+                black_box(black_box(value) as f128);
+            }
+        })
+    });
+    group.finish();
+}
+
+fn bench_f128_into_f16(c: &mut Criterion) {
+    let std_values = black_box(F128_VALUES);
+    let custom_values: Vec<F128> = std_values
+        .iter()
+        .map(|&value| F128::from_bits(value.to_bits()))
+        .collect();
+    let mut group = c.benchmark_group("f128_into_f16");
+    group.throughput(Throughput::Elements(std_values.len() as u64));
+
+    group.bench_function("custom", |b| {
+        b.iter(|| {
+            for &value in black_box(custom_values.as_slice()) {
+                black_box(<F16 as casting::CastFrom<F128>>::cast_from(black_box(
+                    value,
+                )));
+            }
+        })
+    });
+    group.bench_function("std", |b| {
+        b.iter(|| {
+            for &value in black_box(std_values) {
+                black_box(black_box(value) as f16);
+            }
+        })
+    });
+    group.finish();
+}
+
 // ============================================================================
 // f16 <-> integer benchmarks
 // ============================================================================
@@ -408,56 +468,62 @@ bench_impl! {
 // Criterion setup
 // ============================================================================
 
-criterion_group!(
-    benches,
-    bench_f16_into_u8,
-    bench_f16_from_u8,
-    bench_f16_into_i8,
-    bench_f16_from_i8,
-    bench_f16_into_u16,
-    bench_f16_from_u16,
-    bench_f16_into_i16,
-    bench_f16_from_i16,
-    bench_f16_into_u32,
-    bench_f16_from_u32,
-    bench_f16_into_i32,
-    bench_f16_from_i32,
-    bench_f16_into_u64,
-    bench_f16_from_u64,
-    bench_f16_into_i64,
-    bench_f16_from_i64,
-    bench_f16_into_u128,
-    bench_f16_from_u128,
-    bench_f16_into_i128,
-    bench_f16_from_i128,
-    bench_f16_into_f32,
-    bench_f16_from_f32,
-    bench_f16_into_f64,
-    bench_f16_from_f64,
-    bench_f128_into_u8,
-    bench_f128_from_u8,
-    bench_f128_into_i8,
-    bench_f128_from_i8,
-    bench_f128_into_u16,
-    bench_f128_from_u16,
-    bench_f128_into_i16,
-    bench_f128_from_i16,
-    bench_f128_into_u32,
-    bench_f128_from_u32,
-    bench_f128_into_i32,
-    bench_f128_from_i32,
-    bench_f128_into_u64,
-    bench_f128_from_u64,
-    bench_f128_into_i64,
-    bench_f128_from_i64,
-    bench_f128_into_u128,
-    bench_f128_from_u128,
-    bench_f128_into_i128,
-    bench_f128_from_i128,
-    bench_f128_from_f32,
-    bench_f128_into_f32,
-    bench_f128_from_f64,
-    bench_f128_into_f64,
-);
+fn all_benches(c: &mut Criterion) {
+    bench_f16_into_u8(c);
+    bench_f16_from_u8(c);
+    bench_f16_into_i8(c);
+    bench_f16_from_i8(c);
+    bench_f16_into_u16(c);
+    bench_f16_from_u16(c);
+    bench_f16_into_i16(c);
+    bench_f16_from_i16(c);
+    bench_f16_into_u32(c);
+    bench_f16_from_u32(c);
+    bench_f16_into_i32(c);
+    bench_f16_from_i32(c);
+    bench_f16_into_u64(c);
+    bench_f16_from_u64(c);
+    bench_f16_into_i64(c);
+    bench_f16_from_i64(c);
+    bench_f16_into_u128(c);
+    bench_f16_into_i128(c);
+    #[cfg(not(target_os = "macos"))]
+    {
+        bench_f16_from_u128(c);
+        bench_f16_from_i128(c);
+    }
+    bench_f16_into_f32(c);
+    bench_f16_from_f32(c);
+    bench_f16_into_f64(c);
+    bench_f16_from_f64(c);
+    bench_f16_into_f128(c);
+    bench_f128_into_f16(c);
+    bench_f128_into_u8(c);
+    bench_f128_from_u8(c);
+    bench_f128_into_i8(c);
+    bench_f128_from_i8(c);
+    bench_f128_into_u16(c);
+    bench_f128_from_u16(c);
+    bench_f128_into_i16(c);
+    bench_f128_from_i16(c);
+    bench_f128_into_u32(c);
+    bench_f128_from_u32(c);
+    bench_f128_into_i32(c);
+    bench_f128_from_i32(c);
+    bench_f128_into_u64(c);
+    bench_f128_from_u64(c);
+    bench_f128_into_i64(c);
+    bench_f128_from_i64(c);
+    bench_f128_into_u128(c);
+    bench_f128_from_u128(c);
+    bench_f128_into_i128(c);
+    bench_f128_from_i128(c);
+    bench_f128_from_f32(c);
+    bench_f128_into_f32(c);
+    bench_f128_from_f64(c);
+    bench_f128_into_f64(c);
+}
+
+criterion_group!(benches, all_benches);
 
 criterion_main!(benches);
