@@ -1,9 +1,7 @@
 use core::ops::Neg;
 
-mod aarch64;
+mod cast;
 mod debug;
-mod sw;
-mod x86_64;
 
 /// 16-bit floating point type (IEEE 754 half-precision).
 ///

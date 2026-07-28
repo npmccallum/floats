@@ -1,4 +1,4 @@
-use super::super::f16;
+use crate::f16;
 use casting::CastFrom;
 
 impl CastFrom<u128> for f16 {
