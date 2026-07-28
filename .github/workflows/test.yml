@@ -79,6 +79,30 @@ jobs:
         if: matrix.platform.runnable && matrix.rust == 'nightly' && contains(matrix.features, 'casting') && !contains(matrix.features, 'nightly')
         run: cargo test --target "${{ matrix.platform.target }}" --no-default-features --features "${{ matrix.features }}" --verbose
 
+  # The main matrix above pins `rust: ["1.60", "stable", "nightly"]`. Because
+  # "stable" always means whatever is current *when CI runs*, that matrix is
+  # structurally blind to breakage in the interior version range: the aarch64
+  # NEON f16 intrinsics (`src/half/aarch64/fl32.rs`) require rustc 1.94 and
+  # silently no-op (cfg'd out) below it, so every version from 1.61 to 1.93
+  # would build this crate "successfully" while producing an empty aarch64
+  # hardware path -- and once "stable" itself passes 1.94, that whole broken
+  # window becomes invisible to the existing matrix. Pinning the empirical
+  # MSRV boundary here turns "we happened to test after the fact" into a
+  # permanent regression guard.
+  aarch64-msrv-boundary:
+    name: aarch64 NEON f16 intrinsics (rust 1.94)
+    runs-on: macos-latest # aarch64 by default on GitHub's macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.94"
+
+      - name: Build and test
+        run: cargo test --no-default-features --features asm,casting --verbose
+
   # The x86_64 acceleration is gated on `target_feature`, which no target enables
   # by default: `x86_64-unknown-linux-gnu` baselines at sse2. Without an explicit
   # RUSTFLAGS the `src/half/x86_64` trees are never compiled, so a build break
