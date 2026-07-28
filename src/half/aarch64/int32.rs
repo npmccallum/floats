@@ -7,6 +7,11 @@ impl CastFrom<f16> for i32 {
     fn cast_from(value: f16) -> i32 {
         let result: i32;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "fmov {tmp:h}, {input:w}",    // Move u16 into a vector register as f16
@@ -28,6 +33,11 @@ impl CastFrom<i32> for f16 {
     fn cast_from(value: i32) -> f16 {
         let result: u16;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "scvtf {tmp:h}, {input:w}",  // Convert i32 to f16
@@ -49,6 +59,11 @@ impl CastFrom<f16> for u32 {
     fn cast_from(value: f16) -> u32 {
         let result: u32;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "fmov {tmp:h}, {input:w}",    // Move u16 into a vector register as f16
@@ -70,6 +85,11 @@ impl CastFrom<u32> for f16 {
     fn cast_from(value: u32) -> f16 {
         let result: u16;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "ucvtf {tmp:h}, {input:w}",  // Convert u32 to f16

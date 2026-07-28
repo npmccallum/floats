@@ -11,6 +11,11 @@ impl CastFrom<f16> for i32 {
     fn cast_from(value: f16) -> i32 {
         let result: i32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "vmovd {tmp}, {input:e}",           // Move u16 into a vector register
@@ -42,6 +47,11 @@ impl CastFrom<i32> for f16 {
     fn cast_from(value: i32) -> f16 {
         let result: u32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 // `vcvtsi2sh` merges the upper bits of its destination from its
@@ -67,6 +77,11 @@ impl CastFrom<f16> for u32 {
     fn cast_from(value: f16) -> u32 {
         let result: u32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "vmovd {tmp}, {input:e}",           // Move u16 into a vector register
@@ -94,6 +109,11 @@ impl CastFrom<u32> for f16 {
     fn cast_from(value: u32) -> f16 {
         let result: u32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 // See the `i32` impl above for why `tmp` is zeroed first.

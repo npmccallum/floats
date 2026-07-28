@@ -14,6 +14,11 @@ impl CastFrom<f16> for f32 {
     fn cast_from(value: f16) -> f32 {
         let result: f32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "vmovd {tmp}, {input:e}",           // Move u16 into a vector register
@@ -35,6 +40,11 @@ impl CastFrom<f32> for f16 {
     fn cast_from(value: f32) -> f16 {
         let result: u32;
 
+        // SAFETY: the module is gated on `target_feature = "avx512fp16"`, so the
+        // fp16 conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 // `vcvtss2sh` writes only the low 16 bits of its destination and

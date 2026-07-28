@@ -7,6 +7,11 @@ impl CastFrom<f16> for f64 {
     fn cast_from(value: f16) -> f64 {
         let result: f64;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "fmov {tmp:h}, {input:w}",  // Move u16 into a vector register as f16
@@ -28,6 +33,11 @@ impl CastFrom<f64> for f16 {
     fn cast_from(value: f64) -> f16 {
         let result: u16;
 
+        // SAFETY: the module is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
             core::arch::asm!(
                 "fcvt {tmp:h}, {input:d}",  // Convert f64 to f16
