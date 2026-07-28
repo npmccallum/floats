@@ -2,8 +2,6 @@ use core::fmt::{Debug, Formatter, Result};
 
 use super::f16;
 
-const F16_INF: u16 = 0x7c00;
-
 struct Buffer {
     bytes: [u8; 16],
     len: usize,
@@ -47,10 +45,84 @@ impl Buffer {
 }
 
 struct Candidate {
-    distance: f64,
+    distance: u128,
     integer: u32,
     digits: i32,
     exponent: i32,
+}
+
+/// The exact integer significand `m` and binary exponent `e` such that a
+/// nonnegative binary16 magnitude bit pattern (0..=0x7c00) equals `m * 2^e`.
+/// Extending the formula algebraically to `0x7c00` (normally infinity) gives
+/// the exact value `2^16`, the true rounding boundary just past `f16::MAX` --
+/// useful as a sentinel, even though `0x7c00` is not itself a finite value.
+fn magnitude(bits: u16) -> (u128, i32) {
+    let exp_field = (bits >> 10) & 0x1f;
+    let mant_field = (bits & 0x3ff) as u128;
+    if exp_field == 0 {
+        (mant_field, -24)
+    } else {
+        (mant_field | 0x400, exp_field as i32 - 25)
+    }
+}
+
+/// The exact midpoint `(a + b) / 2` of two `m * 2^e` values, computed by
+/// aligning to a common exponent and halving via an exponent decrement --
+/// exact, since halving a binary integer never loses precision.
+fn midpoint(a: (u128, i32), b: (u128, i32)) -> (u128, i32) {
+    let (small, large) = if a.1 <= b.1 { (a, b) } else { (b, a) };
+    let shift = (large.1 - small.1) as u32;
+    (small.0 + (large.0 << shift), small.1 - 1)
+}
+
+/// Converts an exact `m * 2^e` value to `n * 10^exp10`, exact for every input
+/// in range here: multiplying by `5^-e` turns a `2^e` (e < 0) denominator
+/// into a `10^e` one.
+fn to_decimal(m_e: (u128, i32)) -> (u128, i32) {
+    let (m, e) = m_e;
+    if e >= 0 {
+        (m << e, 0)
+    } else {
+        (m * pow5((-e) as u32), e)
+    }
+}
+
+fn pow10(exponent: u32) -> u128 {
+    let mut value = 1u128;
+    for _ in 0..exponent {
+        value *= 10;
+    }
+    value
+}
+
+fn pow5(exponent: u32) -> u128 {
+    let mut value = 1u128;
+    for _ in 0..exponent {
+        value *= 5;
+    }
+    value
+}
+
+fn digit_count(n: u128) -> u32 {
+    let mut n = n;
+    let mut count = 1;
+    while n >= 10 {
+        n /= 10;
+        count += 1;
+    }
+    count
+}
+
+/// Exact-rational comparison of two `n * 10^exp10` values via cross
+/// multiplication after aligning to the smaller (finer) exponent.
+fn decimal_cmp(a: (u128, i32), b: (u128, i32)) -> core::cmp::Ordering {
+    let (na, ea) = a;
+    let (nb, eb) = b;
+    if ea <= eb {
+        na.cmp(&(nb * pow10((eb - ea) as u32)))
+    } else {
+        (na * pow10((ea - eb) as u32)).cmp(&nb)
+    }
 }
 
 impl Debug for f16 {
@@ -64,59 +136,53 @@ impl Debug for f16 {
             return Debug::fmt(&exact, formatter);
         }
 
-        let negative = exact.is_sign_negative();
-        let absolute = if negative {
-            -(exact as f64)
-        } else {
-            exact as f64
-        };
-        let mut normalized = absolute;
-        let mut exponent = 0;
-        while normalized >= 10.0 {
-            normalized /= 10.0;
-            exponent += 1;
-        }
-        while normalized < 1.0 {
-            normalized *= 10.0;
-            exponent -= 1;
-        }
+        // Everything below is exact integer arithmetic on the bit pattern, not
+        // floating point, so the result cannot depend on the ambient rounding mode.
+        let negative = (self.0 & 0x8000) != 0;
+        let bits = self.0 & 0x7fff;
+        let self_even = (bits & 1) == 0;
+
+        let value = to_decimal(magnitude(bits));
+        let low_mid = to_decimal(midpoint(magnitude(bits - 1), magnitude(bits)));
+        let high_mid = to_decimal(midpoint(magnitude(bits), magnitude(bits + 1)));
+
+        let exponent = digit_count(value.0) as i32 - 1 + value.1;
 
         let mut selected = None;
         for digits in 1..=5 {
             let decimal_exponent = exponent - (digits - 1);
-            let scaled = absolute / pow10(decimal_exponent);
-            let lower = scaled as u32;
-            let upper = lower + 1;
-            let nearest = if scaled - lower as f64 >= 0.5 {
-                upper
+            let a = decimal_exponent - value.1;
+            let (q, r, d) = if a <= 0 {
+                (value.0 * pow10((-a) as u32), 0u128, 1u128)
             } else {
-                lower
+                let d = pow10(a as u32);
+                (value.0 / d, value.0 % d, d)
             };
+            let lower = q as u32;
+            let upper = lower + 1;
+            let nearest = if r * 2 >= d { upper } else { lower };
 
             let mut best: Option<Candidate> = None;
             for integer in [nearest, lower, upper] {
-                let value = integer as f64 * pow10(decimal_exponent);
-                let signed = if negative { -value } else { value };
-                if from_f32(signed as f32).to_bits() != self.to_bits() {
+                let candidate = (integer as u128, decimal_exponent);
+                let round_trips = match (
+                    decimal_cmp(candidate, low_mid),
+                    decimal_cmp(candidate, high_mid),
+                ) {
+                    (core::cmp::Ordering::Greater, core::cmp::Ordering::Less) => true,
+                    (core::cmp::Ordering::Equal, _) | (_, core::cmp::Ordering::Equal) => self_even,
+                    _ => false,
+                };
+                if !round_trips {
                     continue;
                 }
 
-                let distance = if value >= absolute {
-                    value - absolute
-                } else {
-                    absolute - value
-                };
+                let distance = if integer == lower { r } else { d - r };
                 let replace = match best {
                     None => true,
                     Some(ref previous) => {
-                        let distance_delta = if distance >= previous.distance {
-                            distance - previous.distance
-                        } else {
-                            previous.distance - distance
-                        };
                         distance < previous.distance
-                            || (distance_delta <= f64::EPSILON * absolute
-                                && integer > previous.integer)
+                            || (distance == previous.distance && integer > previous.integer)
                     }
                 };
                 if replace {
@@ -191,22 +257,6 @@ fn render(candidate: Candidate) -> Buffer {
     output
 }
 
-fn pow10(mut exponent: i32) -> f64 {
-    let mut value = 1.0;
-    if exponent >= 0 {
-        while exponent > 0 {
-            value *= 10.0;
-            exponent -= 1;
-        }
-    } else {
-        while exponent < 0 {
-            value /= 10.0;
-            exponent += 1;
-        }
-    }
-    value
-}
-
 fn to_f32(value: f16) -> f32 {
     let bits = value.0 as u32;
     let sign = (bits & 0x8000) << 16;
@@ -226,52 +276,4 @@ fn to_f32(value: f16) -> f32 {
     let shift = mantissa.leading_zeros() - 21;
     let normalized = ((mantissa << shift) & 0x03ff) << 13;
     f32::from_bits(sign | ((113 - shift) << 23) | normalized)
-}
-
-fn from_f32(value: f32) -> f16 {
-    let bits = value.to_bits();
-    let sign = ((bits >> 16) & 0x8000) as u16;
-    let exponent = (bits >> 23) & 0xff;
-    let mantissa = bits & 0x007f_ffff;
-
-    if exponent == 0 {
-        return f16(sign);
-    }
-    if exponent == 0xff {
-        return if mantissa == 0 {
-            f16(sign | F16_INF)
-        } else {
-            f16(sign | F16_INF | 0x0200 | ((mantissa >> 13) as u16 & 0x03ff))
-        };
-    }
-
-    let f16_exponent = exponent as i32 - 112;
-    if f16_exponent > 30 {
-        return f16(sign | F16_INF);
-    }
-    if f16_exponent <= 0 {
-        let shift = (14 - f16_exponent) as u32;
-        if shift > 24 {
-            return f16(sign);
-        }
-        let significand = mantissa | 0x0080_0000;
-        let truncated = significand >> shift;
-        let remainder = significand & ((1 << shift) - 1);
-        let halfway = 1 << (shift - 1);
-        let rounded = truncated
-            + u32::from(remainder > halfway || (remainder == halfway && truncated & 1 != 0));
-        return f16(sign | rounded as u16);
-    }
-
-    let truncated = mantissa >> 13;
-    let remainder = mantissa & 0x1fff;
-    let rounded =
-        truncated + u32::from(remainder > 0x1000 || (remainder == 0x1000 && truncated & 1 != 0));
-    if rounded < 0x400 {
-        f16(sign | ((f16_exponent as u16) << 10) | rounded as u16)
-    } else if f16_exponent >= 30 {
-        f16(sign | F16_INF)
-    } else {
-        f16(sign | (((f16_exponent + 1) as u16) << 10))
-    }
 }
