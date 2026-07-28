@@ -113,3 +113,24 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=${{ matrix.target_feature }}"
         run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --verbose
+
+      # AVX-512 FP16 needs Sapphire Rapids or later, which no GitHub-hosted
+      # runner has -- previously this leg only ever reached `--no-run`, so
+      # the 12 hand-written asm blocks in `src/half/x86_64/avx` (including
+      # their NaN/Inf saturation guards) were built but never executed
+      # anywhere. Intel SDE emulates the instructions in software: it proves
+      # correctness (the properties this test suite checks), not timing.
+      - name: Install Intel SDE
+        if: matrix.target_feature == '+avx512fp16'
+        run: |
+          curl -sL -o sde.tar.xz "https://downloadmirror.intel.com/915934/sde-external-10.8.0-2026-03-15-lin.tar.xz"
+          mkdir -p "$HOME/sde"
+          tar xf sde.tar.xz --strip-components=1 -C "$HOME/sde"
+          echo "$HOME/sde" >> "$GITHUB_PATH"
+
+      - name: Run tests under SDE (Sapphire Rapids emulation)
+        if: matrix.target_feature == '+avx512fp16'
+        env:
+          RUSTFLAGS: "-C target-feature=${{ matrix.target_feature }}"
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde64 -spr --"
+        run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --test differential --test cast --test clobber --verbose
