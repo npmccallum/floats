@@ -95,8 +95,13 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # docs.rs builds with `features = ["asm", "casting"]` (package.metadata.docs.rs
+      # above), so that's the config that must stay warning-clean. The bare
+      # `cargo doc --no-deps` this job ran previously only builds the default
+      # feature set (`asm` alone) and so never compiles the `casting`-gated
+      # re-export -- a broken intra-doc link there merged green.
       - name: Check documentation
-        run: cargo doc --no-deps
+        run: cargo doc --no-deps --features asm,casting
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings"
 
