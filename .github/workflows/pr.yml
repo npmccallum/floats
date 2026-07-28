@@ -43,12 +43,34 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: aarch64-unknown-linux-gnu
 
       - name: Run Clippy (with asm and casting)
         run: cargo clippy --features casting -- -D warnings
 
       - name: Run Clippy (software casting)
         run: cargo clippy --no-default-features --features casting -- -D warnings
+
+      # The three lints above never touch any hardware conversion tree: none
+      # of the enabled `target_feature`s (sse2 baseline on x86_64-unknown-
+      # linux-gnu) turn on `src/half/aarch64`, `src/half/x86_64/f16c`, or
+      # `src/half/x86_64/avx`. `cargo clippy` only needs to typecheck (no
+      # linker involved), so cross-target and cross-target-feature runs work
+      # here without any C toolchain.
+      - name: Run Clippy (x86_64 F16C)
+        env:
+          RUSTFLAGS: "-C target-feature=+f16c"
+        run: cargo clippy --no-default-features --features asm,casting -- -D warnings
+
+      - name: Run Clippy (x86_64 AVX-512 FP16)
+        env:
+          RUSTFLAGS: "-C target-feature=+avx512fp16"
+        run: cargo clippy --no-default-features --features asm,casting -- -D warnings
+
+      - name: Run Clippy (aarch64 NEON FP16)
+        env:
+          RUSTFLAGS: "-C target-feature=+fp16"
+        run: cargo clippy --target aarch64-unknown-linux-gnu --no-default-features --features asm,casting -- -D warnings
 
   fmt:
     name: Format
