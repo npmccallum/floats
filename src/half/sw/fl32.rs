@@ -1,6 +1,10 @@
 #![cfg(not(any(
     all(feature = "asm", target_arch = "aarch64", target_feature = "fp16"),
-    all(feature = "asm", target_arch = "x86_64", target_feature = "f16c")
+    all(
+        feature = "asm",
+        target_arch = "x86_64",
+        any(target_feature = "f16c", target_feature = "avx512fp16")
+    )
 )))]
 
 use crate::f16;
@@ -39,8 +43,16 @@ impl CastFrom<f16> for f32 {
         // Infinity or NaN.
         if exp == 31 {
             // Nightly follows the target conversion semantics here: AArch64
-            // quiets signaling NaNs while x86 preserves the signaling bit.
-            let quiet = if cfg!(target_arch = "aarch64") && mant != 0 {
+            // and x86_64+F16C quiet signaling NaNs (their hardware widening
+            // instructions do), while a target with neither quiets nothing
+            // and preserves the signaling bit. This must be checked even when
+            // this software path is the one compiled in (e.g. `asm` off on a
+            // target with F16C enabled), since nightly still lowers to the
+            // hardware instruction there.
+            let quiet = if (cfg!(target_arch = "aarch64")
+                || (cfg!(target_arch = "x86_64") && cfg!(target_feature = "f16c")))
+                && mant != 0
+            {
                 1 << 22
             } else {
                 0
