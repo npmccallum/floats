@@ -9,17 +9,6 @@ impl CastFrom<f16> for i32 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> i32 {
-        if value.is_nan() {
-            return 0;
-        }
-        if value.is_infinite() {
-            return if value.is_sign_negative() {
-                i32::MIN
-            } else {
-                i32::MAX
-            };
-        }
-
         let result: i32;
 
         unsafe {
@@ -33,7 +22,17 @@ impl CastFrom<f16> for i32 {
             );
         }
 
-        result
+        if value.is_nan() {
+            0
+        } else if value.is_infinite() {
+            if value.is_sign_negative() {
+                i32::MIN
+            } else {
+                i32::MAX
+            }
+        } else {
+            result
+        }
     }
 }
 
@@ -62,13 +61,6 @@ impl CastFrom<f16> for u32 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> u32 {
-        if value.is_nan() || value.is_sign_negative() {
-            return 0;
-        }
-        if value.is_infinite() {
-            return u32::MAX;
-        }
-
         let result: u32;
 
         unsafe {
@@ -82,7 +74,13 @@ impl CastFrom<f16> for u32 {
             );
         }
 
-        result
+        if value.is_nan() || value.is_sign_negative() {
+            0
+        } else if value.is_infinite() {
+            u32::MAX
+        } else {
+            result
+        }
     }
 }
 
