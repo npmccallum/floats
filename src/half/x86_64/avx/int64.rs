@@ -44,6 +44,10 @@ impl CastFrom<i64> for f16 {
 
         unsafe {
             core::arch::asm!(
+                // `vcvtsi2sh` merges the upper bits of its destination from its
+                // first source operand, which is `tmp` itself; zeroing breaks the
+                // dependency on whatever last used the register.
+                "vpxor {tmp}, {tmp}, {tmp}",
                 "vcvtsi2sh {tmp}, {tmp}, {input:r}", // Convert i64 to scalar f16
                 "vmovd {out:e}, {tmp}",              // Move f16 bits to a GPR
                 input = in(reg) value,
@@ -92,6 +96,8 @@ impl CastFrom<u64> for f16 {
 
         unsafe {
             core::arch::asm!(
+                // See the `i64` impl above for why `tmp` is zeroed first.
+                "vpxor {tmp}, {tmp}, {tmp}",
                 "vcvtusi2sh {tmp}, {tmp}, {input:r}", // Convert u64 to scalar f16
                 "vmovd {out:e}, {tmp}",               // Move f16 bits to a GPR
                 input = in(reg) value,
