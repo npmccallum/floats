@@ -37,8 +37,11 @@ impl CastFrom<f32> for f16 {
 
         unsafe {
             core::arch::asm!(
-                "vcvtss2sh {tmp}, {tmp}, {input}",  // Convert scalar f32 to f16
-                "vmovd {out:e}, {tmp}",             // Move f16 bits to a GPR
+                // `vcvtss2sh` writes only the low 16 bits of its destination and
+                // merges the upper bits from its first source operand, so both
+                // sources are `input`: `tmp` is never read before it is written.
+                "vcvtss2sh {tmp}, {input}, {input}", // Convert scalar f32 to f16
+                "vmovd {out:e}, {tmp}",              // Move f16 bits to a GPR
                 input = in(xmm_reg) value,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,

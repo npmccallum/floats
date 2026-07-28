@@ -34,8 +34,9 @@ impl CastFrom<f64> for f16 {
 
         unsafe {
             core::arch::asm!(
-                "vcvtsd2sh {tmp}, {tmp}, {input}",  // Convert scalar f64 to f16
-                "vmovd {out:e}, {tmp}",             // Move f16 bits to a GPR
+                // See the `f32` impl for why both sources are `input`.
+                "vcvtsd2sh {tmp}, {input}, {input}", // Convert scalar f64 to f16
+                "vmovd {out:e}, {tmp}",              // Move f16 bits to a GPR
                 input = in(xmm_reg) value,
                 tmp = out(xmm_reg) _,
                 out = lateout(reg) result,
