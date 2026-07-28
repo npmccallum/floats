@@ -105,6 +105,22 @@ jobs:
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings"
 
+  bench-compiles:
+    name: Bench (compile-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      # No CI job ever compiled the bench: `cargo test --no-run` doesn't
+      # build `harness = false` benches, so it can bit-rot silently as a
+      # nightly-only API surface. Compile-only: benches/cast.rs is not a
+      # meaningful timing measurement inside a CI runner anyway.
+      - name: Compile benches
+        run: cargo bench --no-run --features casting
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
