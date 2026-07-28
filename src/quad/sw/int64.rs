@@ -71,25 +71,12 @@ impl CastFrom<i64> for f128 {
             return f128(sign | F128_INF);
         }
 
-        let shift = msb_pos.saturating_sub(112);
-        let mant_bits = if msb_pos >= 112 {
-            abs >> shift
-        } else {
-            abs << (112 - msb_pos)
-        };
-
-        let round_bit = if shift > 0 {
-            (abs >> (shift - 1)) & 1
-        } else {
-            0
-        };
-        let rounded = (mant_bits & F128_MANT_MASK) + round_bit;
-
-        if rounded >= (1u128 << 112) {
-            f128(sign | ((exp as u128 + 1) << 112))
-        } else {
-            f128(sign | ((exp as u128) << 112) | rounded)
-        }
+        // `abs` is at most 64 significant bits, so `msb_pos <= 63` always --
+        // strictly less than the 112-bit mantissa, and thus always exact: no
+        // rounding is ever needed, and the wide-shift/round/carry machinery
+        // `int128.rs` needs for sources up to 128 bits never applies here.
+        let mant_bits = (abs << (112 - msb_pos)) & F128_MANT_MASK;
+        f128(sign | ((exp as u128) << 112) | mant_bits)
     }
 }
 
@@ -109,25 +96,9 @@ impl CastFrom<u64> for f128 {
             return f128(F128_INF);
         }
 
-        let shift = msb_pos.saturating_sub(112);
-        let mant_bits = if msb_pos >= 112 {
-            abs >> shift
-        } else {
-            abs << (112 - msb_pos)
-        };
-
-        let round_bit = if shift > 0 {
-            (abs >> (shift - 1)) & 1
-        } else {
-            0
-        };
-        let rounded = (mant_bits & F128_MANT_MASK) + round_bit;
-
-        if rounded >= (1u128 << 112) {
-            f128((exp as u128 + 1) << 112)
-        } else {
-            f128(((exp as u128) << 112) | rounded)
-        }
+        // See the `i64` impl above: `msb_pos <= 63` always, so this is exact.
+        let mant_bits = (abs << (112 - msb_pos)) & F128_MANT_MASK;
+        f128(((exp as u128) << 112) | mant_bits)
     }
 }
 
