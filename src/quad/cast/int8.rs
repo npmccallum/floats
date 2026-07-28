@@ -1,10 +1,10 @@
+use super::{F128_INF, F128_MANT_MASK};
 use crate::f128;
-use crate::quad::sw::{F128_INF, F128_MANT_MASK};
 use casting::CastFrom;
 
-impl CastFrom<f128> for i64 {
+impl CastFrom<f128> for i8 {
     #[inline]
-    fn cast_from(value: f128) -> i64 {
+    fn cast_from(value: f128) -> i8 {
         let bits = value.0;
         let sign = (bits >> 127) != 0;
         let exp = ((bits >> 112) & 0x7FFF) as i32;
@@ -19,7 +19,7 @@ impl CastFrom<f128> for i64 {
         }
 
         if exp == 0x7FFF {
-            return if sign { i64::MIN } else { i64::MAX };
+            return if sign { i8::MIN } else { i8::MAX };
         }
 
         let unbiased_exp = exp - 16383;
@@ -27,18 +27,17 @@ impl CastFrom<f128> for i64 {
             return 0;
         }
 
-        // For i64, max unbiased exp is 62 (since 2^63 needs 63 bits, but i64 is 63+sign)
-        if unbiased_exp > 62 {
-            return if sign { i64::MIN } else { i64::MAX };
+        // For i8, max unbiased exp is 6 (since 2^7 needs 7 bits, but i8 is 7+sign)
+        if unbiased_exp > 6 {
+            return if sign { i8::MIN } else { i8::MAX };
         }
 
         let significand = mant | (1u128 << 112);
         let shift = 112 - unbiased_exp;
 
         let int_val = if shift >= 0 {
-            (significand >> shift) as i64
+            (significand >> shift) as i8
         } else {
-            // This shouldn't happen for unbiased_exp <=62
             0
         };
 
@@ -50,15 +49,15 @@ impl CastFrom<f128> for i64 {
     }
 }
 
-impl CastFrom<i64> for f128 {
+impl CastFrom<i8> for f128 {
     #[inline]
-    fn cast_from(value: i64) -> f128 {
+    fn cast_from(value: i8) -> f128 {
         if value == 0 {
             return f128(0);
         }
 
         let (sign, abs) = if value < 0 {
-            (1u128 << 127, (value as i128).unsigned_abs())
+            (1u128 << 127, (value as i16).unsigned_abs() as u128)
         } else {
             (0u128, value as u128)
         };
@@ -71,18 +70,19 @@ impl CastFrom<i64> for f128 {
             return f128(sign | F128_INF);
         }
 
-        // `abs` is at most 64 significant bits, so `msb_pos <= 63` always --
-        // strictly less than the 112-bit mantissa, and thus always exact: no
-        // rounding is ever needed, and the wide-shift/round/carry machinery
-        // `int128.rs` needs for sources up to 128 bits never applies here.
+        // `abs` is at most 8 significant bits (`i8`/`u8` widened to `u128` via
+        // `unsigned_abs`), so `msb_pos <= 7` always -- strictly less than the
+        // 112-bit mantissa, and thus always exact: no rounding is ever
+        // needed, and the wide-shift/round/carry machinery `int128.rs` needs
+        // for sources up to 128 bits never applies here.
         let mant_bits = (abs << (112 - msb_pos)) & F128_MANT_MASK;
         f128(sign | ((exp as u128) << 112) | mant_bits)
     }
 }
 
-impl CastFrom<u64> for f128 {
+impl CastFrom<u8> for f128 {
     #[inline]
-    fn cast_from(value: u64) -> f128 {
+    fn cast_from(value: u8) -> f128 {
         if value == 0 {
             return f128(0);
         }
@@ -96,15 +96,15 @@ impl CastFrom<u64> for f128 {
             return f128(F128_INF);
         }
 
-        // See the `i64` impl above: `msb_pos <= 63` always, so this is exact.
+        // See the `i8` impl above: `msb_pos <= 7` always, so this is exact.
         let mant_bits = (abs << (112 - msb_pos)) & F128_MANT_MASK;
         f128(((exp as u128) << 112) | mant_bits)
     }
 }
 
-impl CastFrom<f128> for u64 {
+impl CastFrom<f128> for u8 {
     #[inline]
-    fn cast_from(value: f128) -> u64 {
+    fn cast_from(value: f128) -> u8 {
         let bits = value.0;
         let sign = bits >> 127;
         let exp = ((bits >> 112) & 0x7FFF) as i32;
@@ -123,7 +123,7 @@ impl CastFrom<f128> for u64 {
         }
 
         if exp == 0x7FFF {
-            return u64::MAX;
+            return u8::MAX;
         }
 
         let unbiased_exp = exp - 16383;
@@ -131,17 +131,17 @@ impl CastFrom<f128> for u64 {
             return 0;
         }
 
-        if unbiased_exp > 63 {
-            return u64::MAX;
+        if unbiased_exp > 7 {
+            return u8::MAX;
         }
 
         let significand = mant | (1u128 << 112);
         let shift = 112 - unbiased_exp;
 
         if shift >= 0 {
-            (significand >> shift) as u64
+            (significand >> shift) as u8
         } else {
-            (significand << -shift) as u64
+            (significand << -shift) as u8
         }
     }
 }

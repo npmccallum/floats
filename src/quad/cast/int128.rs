@@ -1,5 +1,5 @@
+use super::{F128_INF, F128_MANT_MASK};
 use crate::f128;
-use crate::quad::sw::{F128_INF, F128_MANT_MASK};
 use casting::CastFrom;
 
 impl CastFrom<f128> for i128 {

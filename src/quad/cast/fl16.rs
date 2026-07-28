@@ -1,6 +1,6 @@
+use super::{F128_ABS_MASK, F128_EXP_BIAS, F128_MANT_MASK};
 use crate::f128;
 use crate::f16;
-use crate::quad::sw::{F128_ABS_MASK, F128_EXP_BIAS, F128_MANT_MASK};
 use casting::CastFrom;
 
 const F16_EXP_BIAS: i32 = 15;

@@ -1,6 +1,6 @@
 use core::ops::Neg;
 
-mod sw;
+mod cast;
 
 /// 128-bit floating point type (IEEE 754 quadruple-precision).
 ///
