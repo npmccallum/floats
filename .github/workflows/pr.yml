@@ -130,11 +130,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Generate code coverage
-        run: cargo tarpaulin --out xml --no-default-features --features casting
+      - name: Generate code coverage (software paths)
+        run: cargo tarpaulin --out xml --output-dir sw --no-default-features --features casting
+
+      # x86_64-unknown-linux-gnu doesn't enable F16C by default, so the
+      # software-path run above never exercises `src/half/x86_64/f16c`.
+      # AVX-512 FP16 needs Sapphire Rapids and isn't coverable here at all
+      # (see .github/workflows/test.yml's `x86-target-features` job) --
+      # tarpaulin's ptrace-based instrumentation is also x86_64-only, so
+      # `src/half/aarch64` has no coverage venue in CI either. Both are
+      # residual risk, not silently-passing gaps: they simply do not appear
+      # in the report rather than appearing as covered.
+      - name: Generate code coverage (x86_64 F16C)
+        env:
+          RUSTFLAGS: "-C target-feature=+f16c"
+        run: cargo tarpaulin --out xml --output-dir f16c --no-default-features --features asm,casting
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
-          files: ./cobertura.xml
+          files: ./sw/cobertura.xml,./f16c/cobertura.xml
           fail_ci_if_error: false
