@@ -140,8 +140,8 @@ jobs:
 
       # AVX-512 FP16 needs Sapphire Rapids or later, which no GitHub-hosted
       # runner has -- previously this leg only ever reached `--no-run`, so
-      # the 12 hand-written asm blocks in `src/half/x86_64/avx` (including
-      # their NaN/Inf saturation guards) were built but never executed
+      # the hand-written asm blocks for AVX-512 FP16 (including their
+      # NaN and infinity saturation fixups) were built but never executed
       # anywhere. Intel SDE emulates the instructions in software: it proves
       # correctness (the properties this test suite checks), not timing.
       - name: Install Intel SDE
@@ -157,4 +157,4 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=${{ matrix.target_feature }}"
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde64 -spr --"
-        run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --test differential --test cast --test clobber --verbose
+        run: cargo test --target x86_64-unknown-linux-gnu --no-default-features --features asm,casting --test compat --verbose
