@@ -1,15 +1,5 @@
 use crate::f16;
 use casting::CastFrom;
-#[cfg(all(
-    feature = "asm",
-    target_arch = "x86_64",
-    not(target_feature = "avx512fp16"),
-    target_feature = "f16c"
-))]
-use core::arch::x86_64::{
-    _mm_cvtph_ps, _mm_cvtps_ph, _mm_cvtss_f32, _mm_extract_epi16, _mm_set_ss, _mm_setr_epi16,
-    _MM_FROUND_CUR_DIRECTION,
-};
 
 // f16 <-> f32 conversions.
 
@@ -147,11 +137,25 @@ impl CastFrom<f16> for f32 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> f32 {
-        // SAFETY: this module is gated on `target_feature = "f16c"`.
+        let result: f32;
+
+        // SAFETY: the impl is gated on `target_feature = "f16c"`, so the F16C
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block
+        // declares every register it writes, and it touches neither memory nor
+        // the stack, matching `nomem` and `nostack`.
         unsafe {
-            let packed = _mm_setr_epi16(value.0 as i16, 0, 0, 0, 0, 0, 0, 0);
-            _mm_cvtss_f32(_mm_cvtph_ps(packed))
+            core::arch::asm!(
+                "vmovd {tmp}, {input:e}",    // Move u16 into a vector register
+                "vcvtph2ps {output}, {tmp}", // Convert f16 to f32
+                input = in(reg) value.0 as u32,
+                tmp = out(xmm_reg) _,
+                output = lateout(xmm_reg) result,
+                options(nomem, nostack)
+            );
         }
+
+        result
     }
 }
 
@@ -165,12 +169,27 @@ impl CastFrom<f32> for f16 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f32) -> f16 {
-        // SAFETY: this module is gated on `target_feature = "f16c"`.
+        let result: u16;
+
+        // SAFETY: the impl is gated on `target_feature = "f16c"`, so the F16C
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `xmm_reg` scratch -- so the block
+        // declares every register it writes, and it touches neither memory nor
+        // the stack, matching `nomem` and `nostack`.
         unsafe {
-            // This immediate defers to the dynamic rounding mode.
-            let packed = _mm_cvtps_ph::<_MM_FROUND_CUR_DIRECTION>(_mm_set_ss(value));
-            f16(_mm_extract_epi16::<0>(packed) as u16)
+            core::arch::asm!(
+                // Immediate 4 is `_MM_FROUND_CUR_DIRECTION`: round by the dynamic
+                // MXCSR mode, and do not suppress the exception flags.
+                "vcvtps2ph {tmp}, {input}, 4",  // Convert f32 to f16
+                "vpextrw {output:e}, {tmp}, 0", // Move lane 0 to a GPR, zero-extended
+                input = in(xmm_reg) value,
+                tmp = out(xmm_reg) _,
+                output = lateout(reg) result,
+                options(nomem, nostack)
+            );
         }
+
+        f16(result)
     }
 }
 
