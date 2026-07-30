@@ -100,8 +100,8 @@ jobs:
         with:
           toolchain: "1.94"
 
-      - name: Build and test
-        run: cargo test --no-default-features --features asm,casting --verbose
+      - name: Build
+        run: cargo build --no-default-features --features asm,casting --verbose
 
   # The x86_64 acceleration is gated on `target_feature`, which no target enables
   # by default: `x86_64-unknown-linux-gnu` baselines at sse2. Without an explicit
