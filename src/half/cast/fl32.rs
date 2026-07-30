@@ -1,7 +1,5 @@
 use crate::f16;
 use casting::CastFrom;
-#[cfg(all(feature = "asm", target_arch = "aarch64", target_feature = "fp16"))]
-use core::arch::aarch64::{float16x4_t, float32x4_t, vcvt_f16_f32, vcvt_f32_f16, vgetq_lane_f32};
 #[cfg(all(
     feature = "asm",
     target_arch = "x86_64",
@@ -14,48 +12,58 @@ use core::arch::x86_64::{
 };
 
 // f16 <-> f32 conversions.
-//
-// These use the `core::arch::aarch64` intrinsics rather than `asm!`. They are
-// the four-lane NEON forms -- there is no stable scalar fp16 intrinsic -- but
-// only lane 0 is populated, and LLVM folds the whole thing down to the same
-// scalar `fcvt` the hand-written assembly emitted. Letting the register
-// allocator assign the registers means there is no operand contract left to get
-// wrong; the integer conversions in `int32.rs`/`int64.rs` still need `asm!`
-// because no stable intrinsic covers them.
 
 #[cfg(all(feature = "asm", target_arch = "aarch64", target_feature = "fp16"))]
-#[allow(clippy::incompatible_msrv)]
 impl CastFrom<f16> for f32 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f16) -> f32 {
-        // SAFETY: `neon` is baseline on aarch64, and `float16x4_t` has the same
-        // layout as `[u16; 4]`.
+        let result: f32;
+
+        // SAFETY: the impl is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
-            let packed: float16x4_t = core::mem::transmute([value.0, 0u16, 0, 0]);
-            let widened: float32x4_t = vcvt_f32_f16(packed);
-            vgetq_lane_f32::<0>(widened)
+            core::arch::asm!(
+                "fmov {tmp:h}, {input:w}",  // Move u16 into a vector register as f16
+                "fcvt {output:s}, {tmp:h}", // Convert f16 to f32
+                input = in(reg) value.0,
+                tmp = out(vreg) _,
+                output = lateout(vreg) result,
+                options(nomem, nostack)
+            );
         }
+
+        result
     }
 }
 
 #[cfg(all(feature = "asm", target_arch = "aarch64", target_feature = "fp16"))]
-#[allow(clippy::incompatible_msrv)]
 impl CastFrom<f32> for f16 {
     #[inline]
     #[allow(unsafe_code)]
     fn cast_from(value: f32) -> f16 {
-        // SAFETY: `neon` is baseline on aarch64, and `float16x4_t` has the same
-        // layout as `[u16; 4]`.
+        let result: u16;
+
+        // SAFETY: the impl is gated on `target_feature = "fp16"`, so the fp16
+        // conversion instructions are available. Every operand is a compiler-
+        // allocated slot -- including the `vreg` scratch -- so the block declares
+        // every register it writes, and it touches neither memory nor the stack,
+        // matching `nomem` and `nostack`.
         unsafe {
-            let packed: float32x4_t = core::arch::aarch64::vsetq_lane_f32::<0>(
-                value,
-                core::arch::aarch64::vdupq_n_f32(0.0),
+            core::arch::asm!(
+                "fcvt {tmp:h}, {input:s}",  // Convert f32 to f16
+                "fmov {output:w}, {tmp:h}", // Move f16 to a GPR (u16 in low bits)
+                input = in(vreg) value,
+                tmp = out(vreg) _,
+                output = lateout(reg) result,
+                options(nomem, nostack)
             );
-            let narrowed: float16x4_t = vcvt_f16_f32(packed);
-            let lanes: [u16; 4] = core::mem::transmute(narrowed);
-            f16(lanes[0])
         }
+
+        f16(result)
     }
 }
 
