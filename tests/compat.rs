@@ -4,6 +4,10 @@
 //! expressions -- ours and nightly's -- and the function only compares them.
 //! Cases are chosen to reach every branch of the conversion code rather than
 //! to enumerate inputs.
+//!
+//! Conversions nightly cannot currently perform correctly are not here. They
+//! live in `upstream_gaps.rs`, checked against written-out values, and move
+//! back here as each upstream fix lands.
 
 #![cfg(all(feature = "casting", not(feature = "nightly")))]
 #![feature(f16, f128)]
@@ -17,27 +21,6 @@
 use casting::CastFrom;
 use floats::{f128 as F128, f16 as F16};
 use std::hint::black_box;
-
-// ---------------------------------------------------------------------------
-// Three groups compare against a written-out value rather than a nightly
-// conversion, because the nightly conversion is unusable:
-//
-//   * `u128`/`i128` -> f16 needs compiler-rt's `__floattihf` /
-//     `__floatuntihf`, which aarch64 macOS does not resolve -- the binary
-//     would fail to link. Nightly's own `f16` values stand in.
-//     TODO: use `x as f16` once compiler-rt ships those helpers.
-//
-//   * f16 -> `i16` is miscompiled by LLVM under `avx512fp16`, yielding
-//     `i16::MIN` for NaN instead of the 0 a saturating cast is defined to
-//     produce. TODO: use `f16 as i16` once the LLVM fix reaches nightly.
-//
-//   * four f16 -> 128-bit cases are omitted entirely -- `inf` to i128 and
-//     u128, `-inf` to i128, and `-1.0` to i128. With optimization off,
-//     nightly's lowering saturates at 64 bits, so there is no value correct
-//     at every opt-level. The negative-to-unsigned pairs are kept: those
-//     saturate to 0 either way.
-//     TODO: restore once nightly lowers those correctly at `opt-level = 0`.
-// ---------------------------------------------------------------------------
 
 #[rstest::rstest]
 #[case::f16_zero_bits(black_box(F16::from_bits(0x0000)).to_bits(), black_box(f16::from_bits(0x0000)).to_bits())]
@@ -211,7 +194,7 @@ use std::hint::black_box;
 #[case::f16_neg_frac_f128(F128::cast_from(black_box(F16::from_bits(0xB800))).to_bits(), (black_box(f16::from_bits(0xB800)) as f128).to_bits())]
 #[case::f16_zero_i8(i8::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as i8)]
 #[case::f16_zero_u8(u8::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as u8)]
-#[case::f16_zero_i16(i16::cast_from(black_box(F16::from_bits(0x0000))), 0)]
+#[case::f16_zero_i16(i16::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as i16)]
 #[case::f16_zero_u16(u16::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as u16)]
 #[case::f16_zero_i32(i32::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as i32)]
 #[case::f16_zero_u32(u32::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as u32)]
@@ -221,7 +204,7 @@ use std::hint::black_box;
 #[case::f16_zero_u128(u128::cast_from(black_box(F16::from_bits(0x0000))), black_box(f16::from_bits(0x0000)) as u128)]
 #[case::f16_one_i8(i8::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as i8)]
 #[case::f16_one_u8(u8::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as u8)]
-#[case::f16_one_i16(i16::cast_from(black_box(F16::from_bits(0x3C00))), 1)]
+#[case::f16_one_i16(i16::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as i16)]
 #[case::f16_one_u16(u16::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as u16)]
 #[case::f16_one_i32(i32::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as i32)]
 #[case::f16_one_u32(u32::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as u32)]
@@ -231,7 +214,7 @@ use std::hint::black_box;
 #[case::f16_one_u128(u128::cast_from(black_box(F16::from_bits(0x3C00))), black_box(f16::from_bits(0x3C00)) as u128)]
 #[case::f16_neg_one_i8(i8::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as i8)]
 #[case::f16_neg_one_u8(u8::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u8)]
-#[case::f16_neg_one_i16(i16::cast_from(black_box(F16::from_bits(0xBC00))), -1)]
+#[case::f16_neg_one_i16(i16::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as i16)]
 #[case::f16_neg_one_u16(u16::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u16)]
 #[case::f16_neg_one_i32(i32::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as i32)]
 #[case::f16_neg_one_u32(u32::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u32)]
@@ -240,7 +223,7 @@ use std::hint::black_box;
 #[case::f16_neg_one_u128(u128::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u128)]
 #[case::f16_max_i8(i8::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as i8)]
 #[case::f16_max_u8(u8::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as u8)]
-#[case::f16_max_i16(i16::cast_from(black_box(F16::from_bits(0x7BFF))), i16::MAX)]
+#[case::f16_max_i16(i16::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as i16)]
 #[case::f16_max_u16(u16::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as u16)]
 #[case::f16_max_i32(i32::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as i32)]
 #[case::f16_max_u32(u32::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as u32)]
@@ -250,7 +233,7 @@ use std::hint::black_box;
 #[case::f16_max_u128(u128::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as u128)]
 #[case::f16_inf_i8(i8::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i8)]
 #[case::f16_inf_u8(u8::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u8)]
-#[case::f16_inf_i16(i16::cast_from(black_box(F16::from_bits(0x7C00))), i16::MAX)]
+#[case::f16_inf_i16(i16::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i16)]
 #[case::f16_inf_u16(u16::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u16)]
 #[case::f16_inf_i32(i32::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i32)]
 #[case::f16_inf_u32(u32::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u32)]
@@ -258,7 +241,7 @@ use std::hint::black_box;
 #[case::f16_inf_u64(u64::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u64)]
 #[case::f16_neg_inf_i8(i8::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i8)]
 #[case::f16_neg_inf_u8(u8::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u8)]
-#[case::f16_neg_inf_i16(i16::cast_from(black_box(F16::from_bits(0xFC00))), i16::MIN)]
+#[case::f16_neg_inf_i16(i16::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i16)]
 #[case::f16_neg_inf_u16(u16::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u16)]
 #[case::f16_neg_inf_i32(i32::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i32)]
 #[case::f16_neg_inf_u32(u32::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u32)]
@@ -267,7 +250,6 @@ use std::hint::black_box;
 #[case::f16_neg_inf_u128(u128::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u128)]
 #[case::f16_qnan_i8(i8::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as i8)]
 #[case::f16_qnan_u8(u8::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u8)]
-#[case::f16_qnan_i16(i16::cast_from(black_box(F16::from_bits(0x7E00))), 0)]
 #[case::f16_qnan_u16(u16::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u16)]
 #[case::f16_qnan_i32(i32::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as i32)]
 #[case::f16_qnan_u32(u32::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u32)]
@@ -277,7 +259,7 @@ use std::hint::black_box;
 #[case::f16_qnan_u128(u128::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u128)]
 #[case::f16_frac_i8(i8::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as i8)]
 #[case::f16_frac_u8(u8::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as u8)]
-#[case::f16_frac_i16(i16::cast_from(black_box(F16::from_bits(0x3800))), 0)]
+#[case::f16_frac_i16(i16::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as i16)]
 #[case::f16_frac_u16(u16::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as u16)]
 #[case::f16_frac_i32(i32::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as i32)]
 #[case::f16_frac_u32(u32::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as u32)]
@@ -287,7 +269,7 @@ use std::hint::black_box;
 #[case::f16_frac_u128(u128::cast_from(black_box(F16::from_bits(0x3800))), black_box(f16::from_bits(0x3800)) as u128)]
 #[case::f16_neg_frac_i8(i8::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as i8)]
 #[case::f16_neg_frac_u8(u8::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as u8)]
-#[case::f16_neg_frac_i16(i16::cast_from(black_box(F16::from_bits(0xB800))), 0)]
+#[case::f16_neg_frac_i16(i16::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as i16)]
 #[case::f16_neg_frac_u16(u16::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as u16)]
 #[case::f16_neg_frac_i32(i32::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as i32)]
 #[case::f16_neg_frac_u32(u32::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as u32)]
@@ -297,7 +279,7 @@ use std::hint::black_box;
 #[case::f16_neg_frac_u128(u128::cast_from(black_box(F16::from_bits(0xB800))), black_box(f16::from_bits(0xB800)) as u128)]
 #[case::f16_large_i8(i8::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as i8)]
 #[case::f16_large_u8(u8::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as u8)]
-#[case::f16_large_i16(i16::cast_from(black_box(F16::from_bits(0x7B00))), i16::MAX)]
+#[case::f16_large_i16(i16::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as i16)]
 #[case::f16_large_u16(u16::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as u16)]
 #[case::f16_large_i32(i32::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as i32)]
 #[case::f16_large_u32(u32::cast_from(black_box(F16::from_bits(0x7B00))), black_box(f16::from_bits(0x7B00)) as u32)]
@@ -808,29 +790,17 @@ use std::hint::black_box;
 #[case::i64_neg3i64_f128(F128::cast_from(black_box(-3i64)).to_bits(), (black_box(-3i64) as f128).to_bits())]
 #[case::i64_i64_min_f16(F16::cast_from(black_box(i64::MIN)).to_bits(), (black_box(i64::MIN) as f16).to_bits())]
 #[case::i64_i64_min_f128(F128::cast_from(black_box(i64::MIN)).to_bits(), (black_box(i64::MIN) as f128).to_bits())]
-#[case::u128_0u128_f16(F16::cast_from(black_box(0u128)).to_bits(), 0.0f16.to_bits())]
 #[case::u128_0u128_f128(F128::cast_from(black_box(0u128)).to_bits(), (black_box(0u128) as f128).to_bits())]
-#[case::u128_3u128_f16(F16::cast_from(black_box(3u128)).to_bits(), 3.0f16.to_bits())]
 #[case::u128_3u128_f128(F128::cast_from(black_box(3u128)).to_bits(), (black_box(3u128) as f128).to_bits())]
-#[case::u128_1u128sh90_f16(F16::cast_from(black_box(1u128 << 90)).to_bits(), f16::INFINITY.to_bits())]
 #[case::u128_1u128sh90_f128(F128::cast_from(black_box(1u128 << 90)).to_bits(), (black_box(1u128 << 90) as f128).to_bits())]
-#[case::u128_1u128sh113_f16(F16::cast_from(black_box(1u128 << 113)).to_bits(), f16::INFINITY.to_bits())]
 #[case::u128_1u128sh113_f128(F128::cast_from(black_box(1u128 << 113)).to_bits(), (black_box(1u128 << 113) as f128).to_bits())]
-#[case::u128_1u128sh113p1_f16(F16::cast_from(black_box((1u128 << 113) + 1)).to_bits(), f16::INFINITY.to_bits())]
 #[case::u128_1u128sh113p1_f128(F128::cast_from(black_box((1u128 << 113) + 1)).to_bits(), (black_box((1u128 << 113) + 1) as f128).to_bits())]
-#[case::u128_u128_max_f16(F16::cast_from(black_box(u128::MAX)).to_bits(), f16::INFINITY.to_bits())]
 #[case::u128_u128_max_f128(F128::cast_from(black_box(u128::MAX)).to_bits(), (black_box(u128::MAX) as f128).to_bits())]
-#[case::i128_0i128_f16(F16::cast_from(black_box(0i128)).to_bits(), 0.0f16.to_bits())]
 #[case::i128_0i128_f128(F128::cast_from(black_box(0i128)).to_bits(), (black_box(0i128) as f128).to_bits())]
-#[case::i128_3i128_f16(F16::cast_from(black_box(3i128)).to_bits(), 3.0f16.to_bits())]
 #[case::i128_3i128_f128(F128::cast_from(black_box(3i128)).to_bits(), (black_box(3i128) as f128).to_bits())]
-#[case::i128_neg3i128_f16(F16::cast_from(black_box(-3i128)).to_bits(), (-3.0f16).to_bits())]
 #[case::i128_neg3i128_f128(F128::cast_from(black_box(-3i128)).to_bits(), (black_box(-3i128) as f128).to_bits())]
-#[case::i128_1i128sh100_f16(F16::cast_from(black_box(1i128 << 100)).to_bits(), f16::INFINITY.to_bits())]
 #[case::i128_1i128sh100_f128(F128::cast_from(black_box(1i128 << 100)).to_bits(), (black_box(1i128 << 100) as f128).to_bits())]
-#[case::i128_i128_min_f16(F16::cast_from(black_box(i128::MIN)).to_bits(), f16::NEG_INFINITY.to_bits())]
 #[case::i128_i128_min_f128(F128::cast_from(black_box(i128::MIN)).to_bits(), (black_box(i128::MIN) as f128).to_bits())]
-#[case::i128_i128_max_f16(F16::cast_from(black_box(i128::MAX)).to_bits(), f16::INFINITY.to_bits())]
 #[case::i128_i128_max_f128(F128::cast_from(black_box(i128::MAX)).to_bits(), (black_box(i128::MAX) as f128).to_bits())]
 fn value_matches_nightly<T: PartialEq + core::fmt::Debug>(#[case] ours: T, #[case] nightly: T) {
     assert_eq!(ours, nightly);
