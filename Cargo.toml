@@ -26,6 +26,11 @@ casting = { version = "0.1.1", features = ["nightly"] }
 criterion = "0.8"
 rstest = "0.26"
 
+[lints.rust]
+# `ci_builtin_shims` gates test-only stand-ins for compiler builtins nightly
+# does not provide. TODO: remove with rust-lang/compiler-builtins#1261.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_builtin_shims)'] }
+
 [package.metadata.docs.rs]
 features = ["asm", "casting"]
 rustdoc-args = ["--cfg", "docsrs"]

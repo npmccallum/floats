@@ -131,6 +131,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Generate code coverage (software paths)
+        env:
+          RUSTFLAGS: "--cfg ci_builtin_shims" # ci-workarounds
+          CARGO_PROFILE_TEST_OPT_LEVEL: 1 # ci-workarounds
         run: cargo tarpaulin --out xml --output-dir sw --no-default-features --features casting
 
       # x86_64-unknown-linux-gnu doesn't enable F16C by default, so the
@@ -143,7 +146,8 @@ jobs:
       # in the report rather than appearing as covered.
       - name: Generate code coverage (x86_64 F16C)
         env:
-          RUSTFLAGS: "-C target-feature=+f16c"
+          RUSTFLAGS: "-C target-feature=+f16c --cfg ci_builtin_shims" # ci-workarounds
+          CARGO_PROFILE_TEST_OPT_LEVEL: 1 # ci-workarounds
         run: cargo tarpaulin --out xml --output-dir f16c --no-default-features --features asm,casting
 
       - name: Upload coverage to Codecov

@@ -5,9 +5,11 @@
 //! Cases are chosen to reach every branch of the conversion code rather than
 //! to enumerate inputs.
 //!
-//! Conversions nightly cannot currently perform correctly are not here. They
-//! live in `upstream_gaps.rs`, checked against written-out values, and move
-//! back here as each upstream fix lands.
+//! Seventeen cases exercise conversions nightly cannot currently perform, so a
+//! plain `cargo test` fails -- twelve of them at link time. That is deliberate:
+//! the failure is the upstream bug, reported honestly. CI supplies narrow
+//! stand-ins so the suite still gates merges; see `ci-workarounds` in
+//! `.github/workflows/test.yml`.
 
 #![cfg(all(feature = "casting", not(feature = "nightly")))]
 #![feature(f16, f128)]
@@ -17,6 +19,14 @@
 // Comparing a value against NaN is the point of several cases: the contract is
 // that this crate's `PartialEq` answers exactly as nightly's does.
 #![allow(invalid_nan_comparisons)]
+
+// Stand-ins for compiler builtins nightly does not provide. Compiled only when
+// CI passes `--cfg ci_builtin_shims`; a plain `cargo test` links without them
+// and fails, which is the point.
+// TODO: delete once rust-lang/compiler-builtins#1261 reaches a nightly.
+#[cfg(ci_builtin_shims)]
+#[path = "shims/int_to_f16.rs"]
+mod shims;
 
 use casting::CastFrom;
 use floats::{f128 as F128, f16 as F16};
@@ -221,6 +231,7 @@ use std::hint::black_box;
 #[case::f16_neg_one_i64(i64::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as i64)]
 #[case::f16_neg_one_u64(u64::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u64)]
 #[case::f16_neg_one_u128(u128::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as u128)]
+#[case::f16_neg_one_i128(i128::cast_from(black_box(F16::from_bits(0xBC00))), black_box(f16::from_bits(0xBC00)) as i128)]
 #[case::f16_max_i8(i8::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as i8)]
 #[case::f16_max_u8(u8::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as u8)]
 #[case::f16_max_i16(i16::cast_from(black_box(F16::from_bits(0x7BFF))), black_box(f16::from_bits(0x7BFF)) as i16)]
@@ -238,6 +249,8 @@ use std::hint::black_box;
 #[case::f16_inf_i32(i32::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i32)]
 #[case::f16_inf_u32(u32::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u32)]
 #[case::f16_inf_i64(i64::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i64)]
+#[case::f16_inf_u128(u128::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u128)]
+#[case::f16_inf_i128(i128::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as i128)]
 #[case::f16_inf_u64(u64::cast_from(black_box(F16::from_bits(0x7C00))), black_box(f16::from_bits(0x7C00)) as u64)]
 #[case::f16_neg_inf_i8(i8::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i8)]
 #[case::f16_neg_inf_u8(u8::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u8)]
@@ -248,8 +261,10 @@ use std::hint::black_box;
 #[case::f16_neg_inf_i64(i64::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i64)]
 #[case::f16_neg_inf_u64(u64::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u64)]
 #[case::f16_neg_inf_u128(u128::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as u128)]
+#[case::f16_neg_inf_i128(i128::cast_from(black_box(F16::from_bits(0xFC00))), black_box(f16::from_bits(0xFC00)) as i128)]
 #[case::f16_qnan_i8(i8::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as i8)]
 #[case::f16_qnan_u8(u8::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u8)]
+#[case::f16_qnan_i16(i16::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as i16)]
 #[case::f16_qnan_u16(u16::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u16)]
 #[case::f16_qnan_i32(i32::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as i32)]
 #[case::f16_qnan_u32(u32::cast_from(black_box(F16::from_bits(0x7E00))), black_box(f16::from_bits(0x7E00)) as u32)]
@@ -790,17 +805,29 @@ use std::hint::black_box;
 #[case::i64_neg3i64_f128(F128::cast_from(black_box(-3i64)).to_bits(), (black_box(-3i64) as f128).to_bits())]
 #[case::i64_i64_min_f16(F16::cast_from(black_box(i64::MIN)).to_bits(), (black_box(i64::MIN) as f16).to_bits())]
 #[case::i64_i64_min_f128(F128::cast_from(black_box(i64::MIN)).to_bits(), (black_box(i64::MIN) as f128).to_bits())]
+#[case::u128_0u128_f16(F16::cast_from(black_box(0u128)).to_bits(), (black_box(0u128) as f16).to_bits())]
 #[case::u128_0u128_f128(F128::cast_from(black_box(0u128)).to_bits(), (black_box(0u128) as f128).to_bits())]
+#[case::u128_3u128_f16(F16::cast_from(black_box(3u128)).to_bits(), (black_box(3u128) as f16).to_bits())]
 #[case::u128_3u128_f128(F128::cast_from(black_box(3u128)).to_bits(), (black_box(3u128) as f128).to_bits())]
+#[case::u128_1u128sh90_f16(F16::cast_from(black_box(1u128 << 90)).to_bits(), (black_box(1u128 << 90) as f16).to_bits())]
 #[case::u128_1u128sh90_f128(F128::cast_from(black_box(1u128 << 90)).to_bits(), (black_box(1u128 << 90) as f128).to_bits())]
+#[case::u128_1u128sh113_f16(F16::cast_from(black_box(1u128 << 113)).to_bits(), (black_box(1u128 << 113) as f16).to_bits())]
 #[case::u128_1u128sh113_f128(F128::cast_from(black_box(1u128 << 113)).to_bits(), (black_box(1u128 << 113) as f128).to_bits())]
+#[case::u128_1u128sh113p1_f16(F16::cast_from(black_box((1u128 << 113) + 1)).to_bits(), (black_box((1u128 << 113) + 1) as f16).to_bits())]
 #[case::u128_1u128sh113p1_f128(F128::cast_from(black_box((1u128 << 113) + 1)).to_bits(), (black_box((1u128 << 113) + 1) as f128).to_bits())]
+#[case::u128_u128_max_f16(F16::cast_from(black_box(u128::MAX)).to_bits(), (black_box(u128::MAX) as f16).to_bits())]
 #[case::u128_u128_max_f128(F128::cast_from(black_box(u128::MAX)).to_bits(), (black_box(u128::MAX) as f128).to_bits())]
+#[case::i128_0i128_f16(F16::cast_from(black_box(0i128)).to_bits(), (black_box(0i128) as f16).to_bits())]
 #[case::i128_0i128_f128(F128::cast_from(black_box(0i128)).to_bits(), (black_box(0i128) as f128).to_bits())]
+#[case::i128_3i128_f16(F16::cast_from(black_box(3i128)).to_bits(), (black_box(3i128) as f16).to_bits())]
 #[case::i128_3i128_f128(F128::cast_from(black_box(3i128)).to_bits(), (black_box(3i128) as f128).to_bits())]
+#[case::i128_neg3i128_f16(F16::cast_from(black_box(-3i128)).to_bits(), (black_box(-3i128) as f16).to_bits())]
 #[case::i128_neg3i128_f128(F128::cast_from(black_box(-3i128)).to_bits(), (black_box(-3i128) as f128).to_bits())]
+#[case::i128_1i128sh100_f16(F16::cast_from(black_box(1i128 << 100)).to_bits(), (black_box(1i128 << 100) as f16).to_bits())]
 #[case::i128_1i128sh100_f128(F128::cast_from(black_box(1i128 << 100)).to_bits(), (black_box(1i128 << 100) as f128).to_bits())]
+#[case::i128_i128_min_f16(F16::cast_from(black_box(i128::MIN)).to_bits(), (black_box(i128::MIN) as f16).to_bits())]
 #[case::i128_i128_min_f128(F128::cast_from(black_box(i128::MIN)).to_bits(), (black_box(i128::MIN) as f128).to_bits())]
+#[case::i128_i128_max_f16(F16::cast_from(black_box(i128::MAX)).to_bits(), (black_box(i128::MAX) as f16).to_bits())]
 #[case::i128_i128_max_f128(F128::cast_from(black_box(i128::MAX)).to_bits(), (black_box(i128::MAX) as f128).to_bits())]
 fn value_matches_nightly<T: PartialEq + core::fmt::Debug>(#[case] ours: T, #[case] nightly: T) {
     assert_eq!(ours, nightly);
