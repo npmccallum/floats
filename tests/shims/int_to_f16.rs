@@ -2,7 +2,8 @@
 //!
 //! LLVM emits `__floattihf`/`__floatuntihf` for `i128`/`u128 as f16`, but no
 //! runtime provides them, so those casts fail to link. See
-//! rust-lang/compiler-builtins#1261, which implements them upstream.
+//! rust-lang/compiler-builtins#1261, which implements them upstream (open as
+//! of 2026-08-08).
 //!
 //! Defining them here lets CI exercise the twelve 128-bit-to-`f16` cases in
 //! `compat.rs`. The implementation below is deliberately *not* this crate's --
@@ -10,8 +11,9 @@
 //! in `compat.rs` still contrasts two independent implementations rather than
 //! checking one against itself.
 //!
-//! TODO: delete this file and the `--cfg ci_builtin_shims` in CI once #1261
-//! reaches a nightly and `x as f16` links on its own.
+//! TODO: delete this file and the `--cfg ci_builtin_shims` in CI once
+//! rust-lang/compiler-builtins#1261 reaches a nightly -- it must be merged and
+//! then josh-synced into rust-lang/rust before it appears there.
 
 /// Correctly-rounded `u128` -> `f16`, round-to-nearest-ties-even.
 ///

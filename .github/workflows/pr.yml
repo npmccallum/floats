@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
 
+# ci-workarounds: `compat.rs` includes cases nightly cannot yet perform, so a
+# plain `cargo test` fails. The steps below apply the same narrow stand-ins the
+# test workflow does; see the `ci-workarounds` banner in test.yml for what each
+# one is and which upstream fix retires it.
+
 env:
   CARGO_TERM_COLOR: always
 

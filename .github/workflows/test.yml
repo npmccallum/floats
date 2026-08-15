@@ -11,13 +11,36 @@ on:
 # below is narrow, named, and carries the upstream issue that retires it. None
 # of them alter what a test asserts.
 #
-#   --cfg ci_builtin_shims        supplies `__float{,un}tihf`, which no runtime
-#                                 provides. rust-lang/compiler-builtins#1261
-#   CARGO_PROFILE_TEST_OPT_LEVEL  nightly's f16 -> 128-bit lowering saturates at
-#                                 64 bits with optimization off
-#   --skip f16_qnan_i16           LLVM returns i16::MIN for NaN under
-#                                 avx512fp16; fixed in llvm e1823e8b, not yet
-#                                 in nightly's LLVM 23 branch
+#   --cfg ci_builtin_shims
+#       Supplies `__floattihf`/`__floatuntihf`, which no runtime provides, so
+#       `x as f16` does not link.
+#       Fix: rust-lang/compiler-builtins#1261 (open). Retire when it reaches a
+#       nightly -- note it must first be josh-synced into rust-lang/rust.
+#
+#   CARGO_PROFILE_TEST_OPT_LEVEL
+#       LLVM's GlobalISel legalizer narrows the saturating f16 -> 128-bit cast
+#       to i64 and zero-fills the upper half, so it saturates to i64 bounds and
+#       loses the sign:
+#           f16::INFINITY as u128     -> u64::MAX  (want u128::MAX)
+#           f16::NEG_INFINITY as i128 -> +2^63     (want i128::MIN; sign is wrong)
+#           -1.0f16 as i128           -> u64::MAX  (want -1)
+#       aarch64 selects GlobalISel at opt-level 0 and SelectionDAG above it, so
+#       raising the opt-level does not fix anything -- it takes a different path
+#       that happens to be correct. x86_64 is unaffected.
+#       This crate's own conversions are unaffected; only the nightly values
+#       `compat.rs` compares against are wrong.
+#       Fix: llvm/llvm-project#215567. Retire once it reaches a nightly -- it
+#       must land in LLVM, then reach the rust-lang/llvm-project branch rustc
+#       builds from.
+#
+#   --skip f16_qnan_i16
+#       LLVM returns i16::MIN for NaN in the saturating f16 -> i16 cast under
+#       avx512fp16, instead of 0.
+#       Fix: llvm/llvm-project#210556, merged to main as e1823e8b on 2026-07-31.
+#       Not retirable by waiting: rustc builds from the rust-lang/llvm-project
+#       branch rustc/23.1-2026-07-22, which forked from main on 2026-07-14, so
+#       no 23.x bump can pick this up. It needs either a backport to upstream
+#       release/23.x or a cherry-pick onto the rustc branch.
 
 env:
   CARGO_TERM_COLOR: always
